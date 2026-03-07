@@ -162,9 +162,10 @@ GameObject:
   - component: {fileID: 1076781476}
   - component: {fileID: 1076781475}
   - component: {fileID: 1076781474}
+  - component: {fileID: 1076781478}
   m_Layer: 0
   m_Name: Main Camera
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -287,6 +288,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1076781478
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1076781473}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6561fe527b5e46b41a1ebc2128fce169, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraFollow2D
+  target: {fileID: 1814709066}
+  smoothTime: 0.15
+  fixedZ: -10
 --- !u!1 &1467962608
 GameObject:
   m_ObjectHideFlags: 0
@@ -296,8 +312,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1467962609}
-  - component: {fileID: 1467962611}
-  - component: {fileID: 1467962610}
   m_Layer: 0
   m_Name: AttackPoint
   m_TagString: Untagged
@@ -314,72 +328,12 @@ Transform:
   m_GameObject: {fileID: 1467962608}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.8, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1814709066}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1467962610
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1467962608}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a708b29da0d585418ddded10418f7a8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat2D
-  attackPoint: {fileID: 1467962609}
-  comboAttackRange: 1
-  heavyAttackRange: 1.4
-  targetLayer:
-    serializedVersion: 2
-    m_Bits: 8
-  comboDamage: 11
-  heavyDamage: 25
-  maxComboStep: 3
-  comboInputWindow: 0.35
-  comboResetDelay: 0.8
-  heavyHoldThreshold: 0.4
-  onComboAttack:
-    m_PersistentCalls:
-      m_Calls: []
-  onHeavyAttack:
-    m_PersistentCalls:
-      m_Calls: []
---- !u!114 &1467962611
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1467962608}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
-  m_Actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
-  m_NotificationBehavior: 0
-  m_UIInputModule: {fileID: 0}
-  m_DeviceLostEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_DeviceRegainedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ControlsChangedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ActionEvents: []
-  m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: 
-  m_DefaultActionMap: 
-  m_SplitScreenIndex: -1
-  m_Camera: {fileID: 0}
 --- !u!1 &1814709059
 GameObject:
   m_ObjectHideFlags: 0
@@ -395,9 +349,10 @@ GameObject:
   - component: {fileID: 1814709062}
   - component: {fileID: 1814709061}
   - component: {fileID: 1814709060}
+  - component: {fileID: 1814709067}
   m_Layer: 0
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -462,6 +417,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController2D
   walkSpeed: 4
   runSpeedMultiplier: 3
+  dashSpeed: 12
+  dashDuration: 0.15
+  dashCooldown: 0.5
 --- !u!50 &1814709062
 Rigidbody2D:
   serializedVersion: 5
@@ -502,8 +460,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat2D
   attackPoint: {fileID: 1467962609}
-  comboAttackRange: 1
-  heavyAttackRange: 1.4
+  comboAttackRange: 2
+  heavyAttackRange: 3
   targetLayer:
     serializedVersion: 2
     m_Bits: 8
@@ -512,7 +470,10 @@ MonoBehaviour:
   maxComboStep: 3
   comboInputWindow: 0.35
   comboResetDelay: 0.8
+  comboAttackAngle: 90
   heavyHoldThreshold: 0.4
+  heavyAttackAngle: 110
+  attackPointDistance: 1.1
   onComboAttack:
     m_PersistentCalls:
       m_Calls: []
@@ -624,6 +585,22 @@ Transform:
   - {fileID: 1467962609}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1814709067
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814709059}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Health
+  maxHP: 30
+  currentHP: 0
+  hitFlashDuration: 0.08
+  hitFlashColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &2082733634
 GameObject:
   m_ObjectHideFlags: 0
@@ -637,6 +614,7 @@ GameObject:
   - component: {fileID: 2082733637}
   - component: {fileID: 2082733636}
   - component: {fileID: 2082733635}
+  - component: {fileID: 2082733640}
   m_Layer: 3
   m_Name: DummyEnemy
   m_TagString: Untagged
@@ -668,14 +646,14 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2082733634}
-  m_BodyType: 1
+  m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 1
+  m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -686,7 +664,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!61 &2082733637
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -807,6 +785,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2082733640
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2082733634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22bdf4c85b2d840aabf95bf2e7725f5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyMelee2D
+  target: {fileID: 1814709066}
+  playerTag: Player
+  moveSpeed: 2.5
+  attackRange: 1
+  attackCooldown: 1
+  attackDamage: 5
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
