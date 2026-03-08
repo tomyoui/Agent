@@ -2,13 +2,12 @@ using System.Collections;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-[RequireComponent(typeof(Collider2D))]
-public class Health : MonoBehaviour
+public class Health : MonoBehaviour, IDamageable
 {
-    [Header("HP")]
+    [Header("Health")]
     [SerializeField] private int maxHP = 30;
-    [SerializeField] private int currentHP;
-
+    [SerializeField] private int currentHP = 30;
+    
     [Header("Hit Feedback")]
     [SerializeField] private float hitFlashDuration = 0.08f;
     [SerializeField] private Color hitFlashColor = Color.red;
@@ -22,20 +21,21 @@ public class Health : MonoBehaviour
 
     private void Awake()
     {
-        EnsureCollider();
+        if (maxHP < 1)
+        {
+            maxHP = 1;
+        }
+
+        if (currentHP <= 0 || currentHP > maxHP)
+        {
+            currentHP = maxHP;
+        }
 
         _spriteRenderer = GetComponent<SpriteRenderer>();
         if (_spriteRenderer != null)
         {
             _originalColor = _spriteRenderer.color;
         }
-        else
-        {
-            Debug.LogWarning($"[Health] {gameObject.name} has no SpriteRenderer on the same object. Hit flash will be skipped.", this);
-        }
-
-        currentHP = maxHP;
-        Debug.Log($"[Health] {gameObject.name} spawned. HP: {currentHP}/{maxHP}", this);
     }
 
     public void TakeDamage(int damage)
@@ -47,7 +47,7 @@ public class Health : MonoBehaviour
         }
 
         currentHP = Mathf.Max(0, currentHP - damage);
-        Debug.Log($"[Health] {gameObject.name} took {damage} damage. Current HP: {currentHP}/{maxHP}", this);
+        Debug.Log($"[Health] {gameObject.name} took {damage} damage. HP: {currentHP}/{maxHP}", this);
 
         TriggerHitFlash();
 
@@ -55,6 +55,12 @@ public class Health : MonoBehaviour
         {
             Die();
         }
+    }
+
+    private void Die()
+    {
+        // Simple death handling for prototype: remove object.
+        Destroy(gameObject);
     }
 
     private void TriggerHitFlash()
@@ -70,31 +76,20 @@ public class Health : MonoBehaviour
             _spriteRenderer.color = _originalColor;
         }
 
-        _hitFlashRoutine = StartCoroutine(HitFlashCoroutine());
+        _hitFlashRoutine = StartCoroutine(HitFlashRoutine());
     }
 
-    private IEnumerator HitFlashCoroutine()
+    private IEnumerator HitFlashRoutine()
     {
         _spriteRenderer.color = hitFlashColor;
         yield return new WaitForSeconds(hitFlashDuration);
-        _spriteRenderer.color = _originalColor;
-        _hitFlashRoutine = null;
-    }
 
-    private void Die()
-    {
-        Debug.Log($"[Health] {gameObject.name} defeated.", this);
-        Destroy(gameObject);
-    }
-
-    private void EnsureCollider()
-    {
-        Collider2D col = GetComponent<Collider2D>();
-        if (col == null)
+        if (_spriteRenderer != null)
         {
-            gameObject.AddComponent<BoxCollider2D>();
-            Debug.LogWarning($"[Health] {gameObject.name} had no Collider2D. BoxCollider2D was added automatically.", this);
+            _spriteRenderer.color = _originalColor;
         }
+
+        _hitFlashRoutine = null;
     }
 
     private void OnDisable()

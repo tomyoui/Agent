@@ -460,17 +460,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat2D
   attackPoint: {fileID: 1467962609}
-  comboAttackRange: 2
   heavyAttackRange: 3
   targetLayer:
     serializedVersion: 2
     m_Bits: 8
-  comboDamage: 10
   heavyDamage: 25
+  combo1Damage: 8
+  combo1Range: 1.3
+  combo1Angle: 70
+  combo2Damage: 12
+  combo2Range: 1.5
+  combo2Angle: 95
+  combo3Damage: 18
+  combo3Range: 1.7
+  combo3Angle: 120
   maxComboStep: 3
   comboInputWindow: 0.35
   comboResetDelay: 0.8
-  comboAttackAngle: 90
+  attackCooldown: 0.25
   heavyHoldThreshold: 0.4
   heavyAttackAngle: 110
   attackPointDistance: 1.1
@@ -597,7 +604,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
-  maxHP: 30
+  maxHP: 100
   currentHP: 0
   hitFlashDuration: 0.08
   hitFlashColor: {r: 1, g: 0, b: 0, a: 1}
@@ -634,7 +641,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
-  maxHP: 1000
+  maxHP: 100
   currentHP: 0
   hitFlashDuration: 0.08
   hitFlashColor: {r: 1, g: 0, b: 0, a: 1}
@@ -800,7 +807,8 @@ MonoBehaviour:
   target: {fileID: 1814709066}
   playerTag: Player
   moveSpeed: 2.5
-  attackRange: 1
+  attackRange: 1.2
+  attackWindup: 0.2
   attackCooldown: 1
   attackDamage: 5
 --- !u!1660057539 &9223372036854775807

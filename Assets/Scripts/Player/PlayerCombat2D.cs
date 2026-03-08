@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
@@ -57,17 +56,24 @@ public class PlayerCombat2D : MonoBehaviour
     private float _nextComboAttackTime;
     private Vector2 _lastAimDirection = Vector2.right;
     private Camera _mainCamera;
+    private bool _hasLoggedMissingAttackPoint;
 
     private void Awake()
     {
         _playerInput = GetComponent<PlayerInput>();
         _attackAction = _playerInput.actions.FindAction("Attack", true);
         _mainCamera = Camera.main;
+        ResolveAttackPoint();
 
         if (targetLayer.value == 0)
         {
             Debug.LogWarning("[PlayerCombat2D] targetLayer is empty. No enemies will be hit until a layer is assigned.", this);
         }
+    }
+
+    private void OnValidate()
+    {
+        ResolveAttackPoint();
     }
 
     private void OnEnable()
@@ -84,6 +90,7 @@ public class PlayerCombat2D : MonoBehaviour
 
     private void Update()
     {
+        ResolveAttackPoint();
         UpdateAttackPointFromMouse();
 
         if (_currentComboStep > 0 && Time.time - _lastComboTime > comboResetDelay)
@@ -179,62 +186,49 @@ public class PlayerCombat2D : MonoBehaviour
 
     private void PerformAttack(float range, int damage, float attackAngle, string attackType)
     {
-        if (attackPoint == null)
+        if (!ResolveAttackPoint())
         {
-            Debug.LogWarning("[PlayerCombat2D] attackPoint is not assigned.", this);
             return;
         }
 
-        Vector2 origin = transform.position;
+        Vector2 origin = attackPoint.position;
         Vector2 aimDirection = GetCurrentAimDirection();
-        float coneRange = GetConeRange(range);
-        float halfAngle = attackAngle * 0.5f;
-        float minDot = Mathf.Cos(Mathf.Deg2Rad * halfAngle);
+        MeleeHitResolver2D.DealDamageInCone(
+            origin,
+            aimDirection,
+            attackPointDistance,
+            range,
+            attackAngle,
+            damage,
+            targetLayer,
+            this,
+            $"PlayerCombat2D/{attackType}"
+        );
+    }
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, coneRange, targetLayer);
-        Debug.Log($"[PlayerCombat2D] {attackType} attack found {hits.Length} collider(s).", this);
-
-        HashSet<Health> damagedTargets = new HashSet<Health>();
-
-        for (int i = 0; i < hits.Length; i++)
+    private bool ResolveAttackPoint()
+    {
+        if (attackPoint != null)
         {
-            Collider2D hit = hits[i];
-            Health health = hit.GetComponentInParent<Health>();
-
-            if (health == null)
-            {
-                Debug.Log($"[PlayerCombat2D] Collider '{hit.name}' has no Health component.", hit);
-                continue;
-            }
-
-            if (!damagedTargets.Add(health))
-            {
-                continue;
-            }
-
-            Vector2 targetPoint = hit.ClosestPoint(origin);
-            Vector2 toTarget = targetPoint - origin;
-
-            if (toTarget.sqrMagnitude <= 0.0001f)
-            {
-                toTarget = (Vector2)health.transform.position - origin;
-            }
-
-            if (toTarget.sqrMagnitude > coneRange * coneRange)
-            {
-                continue;
-            }
-
-            Vector2 toTargetDirection = toTarget.normalized;
-            float dot = Vector2.Dot(aimDirection, toTargetDirection);
-            if (dot < minDot)
-            {
-                continue;
-            }
-
-            Debug.Log($"[PlayerCombat2D] {attackType} hit target: {health.gameObject.name}", health);
-            health.TakeDamage(damage);
+            _hasLoggedMissingAttackPoint = false;
+            return true;
         }
+
+        Transform found = transform.Find("AttackPoint");
+        if (found != null)
+        {
+            attackPoint = found;
+            _hasLoggedMissingAttackPoint = false;
+            return true;
+        }
+
+        if (!_hasLoggedMissingAttackPoint)
+        {
+            Debug.LogError("[PlayerCombat2D] attackPoint is missing. Assign Attack Point or add a child named 'AttackPoint'.", this);
+            _hasLoggedMissingAttackPoint = true;
+        }
+
+        return false;
     }
 
     private Vector2 GetCurrentAimDirection()
@@ -255,11 +249,6 @@ public class PlayerCombat2D : MonoBehaviour
         }
 
         return aimDirection;
-    }
-
-    private float GetConeRange(float attackRange)
-    {
-        return Mathf.Max(0f, attackPointDistance + attackRange);
     }
 
     private void GetComboStepStats(int comboStep, out int damage, out float range, out float angle)
@@ -293,7 +282,7 @@ public class PlayerCombat2D : MonoBehaviour
     {
         Vector3 origin = transform.position;
         Vector2 aimDirection = GetCurrentAimDirection();
-        float coneRange = GetConeRange(combo3Range);
+        float coneRange = MeleeHitResolver2D.GetConeRange(attackPointDistance, combo3Range);
         float halfAngle = combo3Angle * 0.5f;
 
         Vector2 leftEdge = Quaternion.Euler(0f, 0f, -halfAngle) * aimDirection;

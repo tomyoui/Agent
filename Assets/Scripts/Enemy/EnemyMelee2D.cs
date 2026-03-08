@@ -18,7 +18,6 @@ public class EnemyMelee2D : MonoBehaviour
     [SerializeField] private int attackDamage = 5;
 
     private Rigidbody2D _rb;
-    private Health _targetHealth;
     private bool _isPreparingAttack;
     private float _attackWindupEndTime;
     private float _recoveryEndTime;
@@ -79,21 +78,21 @@ public class EnemyMelee2D : MonoBehaviour
 
     private void ExecuteAttack()
     {
-        if (_targetHealth == null)
-        {
-            _targetHealth = target.GetComponentInParent<Health>();
-        }
-
-        if (_targetHealth == null)
+        if (target == null)
         {
             return;
         }
 
-        float distanceToTarget = Vector2.Distance(transform.position, target.position);
-        if (distanceToTarget <= attackRange)
-        {
-            _targetHealth.TakeDamage(attackDamage);
-        }
+        LayerMask targetMask = 1 << target.gameObject.layer;
+
+        MeleeHitResolver2D.DealDamageInRange(
+            transform.position,
+            attackRange,
+            attackDamage,
+            targetMask,
+            this,
+            "EnemyMelee2D"
+        );
     }
 
     private bool ResolveTarget()
@@ -109,13 +108,7 @@ public class EnemyMelee2D : MonoBehaviour
 
         if (target == null)
         {
-            _targetHealth = null;
             return false;
-        }
-
-        if (_targetHealth == null)
-        {
-            _targetHealth = target.GetComponentInParent<Health>();
         }
 
         return true;
