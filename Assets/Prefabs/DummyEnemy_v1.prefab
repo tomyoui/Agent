@@ -181,7 +181,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
-  maxHP: 100
+  maxHP: 30
   currentHP: 0
   hitFlashDuration: 0.08
   hitFlashColor: {r: 1, g: 0, b: 0, a: 1}
