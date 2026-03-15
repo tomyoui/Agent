@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
@@ -43,6 +44,13 @@ public class PlayerCombat2D : MonoBehaviour
     [Header("Aim")]
     [SerializeField] private float attackPointDistance = 0.9f;
 
+    [Header("Audio")]
+    [SerializeField] private AudioSource hitAudioSource;
+    [SerializeField] private AudioClip[] hitClips;
+
+    [Header("Hit Stop")]
+    [SerializeField] private float hitStopDuration = 0.05f;
+
     [Header("Events")]
     [SerializeField] private ComboEvent onComboAttack;
     [SerializeField] private UnityEvent onHeavyAttack;
@@ -57,12 +65,14 @@ public class PlayerCombat2D : MonoBehaviour
     private Vector2 _lastAimDirection = Vector2.right;
     private Camera _mainCamera;
     private bool _hasLoggedMissingAttackPoint;
+    private Coroutine _hitStopRoutine;
 
     private void Awake()
     {
         _playerInput = GetComponent<PlayerInput>();
         _attackAction = _playerInput.actions.FindAction("Attack", true);
         _mainCamera = Camera.main;
+        hitAudioSource = hitAudioSource != null ? hitAudioSource : GetComponent<AudioSource>();
         ResolveAttackPoint();
 
         if (targetLayer.value == 0)
@@ -193,7 +203,7 @@ public class PlayerCombat2D : MonoBehaviour
 
         Vector2 origin = attackPoint.position;
         Vector2 aimDirection = GetCurrentAimDirection();
-        MeleeHitResolver2D.DealDamageInCone(
+        int damagedCount = MeleeHitResolver2D.DealDamageInCone(
             origin,
             aimDirection,
             attackPointDistance,
@@ -204,6 +214,12 @@ public class PlayerCombat2D : MonoBehaviour
             this,
             $"PlayerCombat2D/{attackType}"
         );
+
+        if (damagedCount > 0)
+        {
+            PlayRandomHitSound();
+            TriggerHitStop();
+        }
     }
 
     private bool ResolveAttackPoint()
@@ -276,6 +292,56 @@ public class PlayerCombat2D : MonoBehaviour
                 angle = combo1Angle;
                 break;
         }
+    }
+
+    private void PlayRandomHitSound()
+    {
+        if (hitAudioSource == null)
+        {
+            Debug.LogWarning("[PlayerCombat2D] Hit sound skipped: hitAudioSource is null.", this);
+            return;
+        }
+
+        if (hitClips == null || hitClips.Length == 0)
+        {
+            Debug.LogWarning("[PlayerCombat2D] Hit sound skipped: hitClips is empty.", this);
+            return;
+        }
+
+        int clipIndex = UnityEngine.Random.Range(0, hitClips.Length);
+        AudioClip clip = hitClips[clipIndex];
+        if (clip == null)
+        {
+            Debug.LogWarning($"[PlayerCombat2D] Hit sound skipped: clip at index {clipIndex} is null.", this);
+            return;
+        }
+
+        Debug.Log($"[PlayerCombat2D] Playing hit sound '{clip.name}' from index {clipIndex}.", this);
+        hitAudioSource.PlayOneShot(clip);
+    }
+
+    private void TriggerHitStop()
+    {
+        if (hitStopDuration <= 0f)
+        {
+            return;
+        }
+
+        if (_hitStopRoutine != null)
+        {
+            StopCoroutine(_hitStopRoutine);
+            Time.timeScale = 1f;
+        }
+
+        _hitStopRoutine = StartCoroutine(HitStopRoutine());
+    }
+
+    private IEnumerator HitStopRoutine()
+    {
+        Time.timeScale = 0f;
+        yield return new WaitForSecondsRealtime(hitStopDuration);
+        Time.timeScale = 1f;
+        _hitStopRoutine = null;
     }
 
     private void OnDrawGizmosSelected()
