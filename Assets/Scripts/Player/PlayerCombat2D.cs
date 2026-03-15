@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
@@ -50,6 +51,10 @@ public class PlayerCombat2D : MonoBehaviour
 
     [Header("Hit Stop")]
     [SerializeField] private float hitStopDuration = 0.05f;
+
+    [Header("Knockback")]
+    [SerializeField] private float knockbackForce = 4f;
+    [SerializeField] private float knockbackDuration = 0.12f;
 
     [Header("Events")]
     [SerializeField] private ComboEvent onComboAttack;
@@ -217,6 +222,7 @@ public class PlayerCombat2D : MonoBehaviour
 
         if (damagedCount > 0)
         {
+            ApplyKnockbackToHitTargets(origin, aimDirection, range, attackAngle);
             PlayRandomHitSound();
             TriggerHitStop();
         }
@@ -318,6 +324,57 @@ public class PlayerCombat2D : MonoBehaviour
 
         Debug.Log($"[PlayerCombat2D] Playing hit sound '{clip.name}' from index {clipIndex}.", this);
         hitAudioSource.PlayOneShot(clip);
+    }
+
+    private void ApplyKnockbackToHitTargets(Vector2 origin, Vector2 aimDirection, float range, float attackAngle)
+    {
+        if (knockbackForce <= 0f || knockbackDuration <= 0f)
+        {
+            return;
+        }
+
+        float coneRange = MeleeHitResolver2D.GetConeRange(attackPointDistance, range);
+        float halfAngle = Mathf.Clamp(attackAngle * 0.5f, 0f, 180f);
+        float minDot = Mathf.Cos(Mathf.Deg2Rad * halfAngle);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, coneRange, targetLayer);
+        HashSet<KnockbackReceiver2D> knockedTargets = new HashSet<KnockbackReceiver2D>();
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider2D hit = hits[i];
+            IDamageable damageable = hit.GetComponentInParent<IDamageable>();
+            if (damageable == null)
+            {
+                continue;
+            }
+
+            Vector2 targetPoint = hit.ClosestPoint(origin);
+            Vector2 toTarget = targetPoint - origin;
+
+            if (toTarget.sqrMagnitude <= 0.0001f)
+            {
+                toTarget = (Vector2)hit.transform.position - origin;
+            }
+
+            if (toTarget.sqrMagnitude > coneRange * coneRange)
+            {
+                continue;
+            }
+
+            float dot = Vector2.Dot(aimDirection, toTarget.normalized);
+            if (dot < minDot)
+            {
+                continue;
+            }
+
+            KnockbackReceiver2D knockbackReceiver = hit.GetComponentInParent<KnockbackReceiver2D>();
+            if (knockbackReceiver == null || !knockedTargets.Add(knockbackReceiver))
+            {
+                continue;
+            }
+
+            knockbackReceiver.ApplyKnockback(toTarget.normalized, knockbackForce, knockbackDuration);
+        }
     }
 
     private void TriggerHitStop()

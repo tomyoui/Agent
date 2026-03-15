@@ -133,7 +133,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3493676708667136215, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: maxHP
-      value: 30
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 6003926066014574684, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_LocalPosition.x
@@ -194,7 +194,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3493676708667136215, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: maxHP
-      value: 30
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 6003926066014574684, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_LocalPosition.x
@@ -932,6 +932,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: a9e3768b1cf9142d6a603fb5bafa217f, type: 3}
   - {fileID: 8300000, guid: 997e2ff16d27f4bfe9d5cb15ca457511, type: 3}
   hitStopDuration: 0.06
+  knockbackForce: 9
+  knockbackDuration: 0.2
   onComboAttack:
     m_PersistentCalls:
       m_Calls: []
@@ -1185,7 +1187,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3493676708667136215, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: maxHP
-      value: 30
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 6003926066014574684, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_LocalPosition.x
