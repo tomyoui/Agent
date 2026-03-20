@@ -48,6 +48,7 @@ public class PlayerCombat2D : MonoBehaviour
     [Header("Audio")]
     [SerializeField] private AudioSource hitAudioSource;
     [SerializeField] private AudioClip[] hitClips;
+    [SerializeField] private AudioClip[] heavySwingClips;
 
     [Header("Hit Stop")]
     [SerializeField] private float hitStopDuration = 0.05f;
@@ -195,6 +196,7 @@ public class PlayerCombat2D : MonoBehaviour
         _currentComboStep = 0;
         _lastComboTime = 0f;
 
+        PlayRandomHeavySwingSound();
         PerformAttack(heavyAttackRange, heavyDamage, heavyAttackAngle, "Heavy");
         onHeavyAttack?.Invoke();
     }
@@ -323,6 +325,32 @@ public class PlayerCombat2D : MonoBehaviour
         }
 
         Debug.Log($"[PlayerCombat2D] Playing hit sound '{clip.name}' from index {clipIndex}.", this);
+        hitAudioSource.PlayOneShot(clip);
+    }
+
+    private void PlayRandomHeavySwingSound()
+    {
+        if (hitAudioSource == null)
+        {
+            Debug.LogWarning("[PlayerCombat2D] Heavy swing sound skipped: hitAudioSource is null.", this);
+            return;
+        }
+
+        if (heavySwingClips == null || heavySwingClips.Length == 0)
+        {
+            Debug.LogWarning("[PlayerCombat2D] Heavy swing sound skipped: heavySwingClips is empty.", this);
+            return;
+        }
+
+        int clipIndex = UnityEngine.Random.Range(0, heavySwingClips.Length);
+        AudioClip clip = heavySwingClips[clipIndex];
+        if (clip == null)
+        {
+            Debug.LogWarning($"[PlayerCombat2D] Heavy swing sound skipped: clip at index {clipIndex} is null.", this);
+            return;
+        }
+
+        Debug.Log($"[PlayerCombat2D] Playing heavy swing sound '{clip.name}' from index {clipIndex}.", this);
         hitAudioSource.PlayOneShot(clip);
     }
 

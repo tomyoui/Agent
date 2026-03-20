@@ -27,6 +27,12 @@ public class PlayerController2D : MonoBehaviour
     private float _dashEndTime;
     private float _nextDashTime;
 
+    /// <summary>
+    /// 외부 컴포넌트(백스텝 등)가 velocity를 제어 중일 때 true로 설정.
+    /// true인 동안 FixedUpdate의 일반 이동이 중단됩니다.
+    /// </summary>
+    public bool IsVelocityLocked { get; set; }
+
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
@@ -57,6 +63,7 @@ public class PlayerController2D : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // 대시 중
         if (_isDashing)
         {
             if (Time.time >= _dashEndTime)
@@ -69,6 +76,9 @@ public class PlayerController2D : MonoBehaviour
                 return;
             }
         }
+
+        // 백스텝 등 외부 velocity 제어 중 — 일반 이동 중단
+        if (IsVelocityLocked) return;
 
         float speed = _isSprinting ? walkSpeed * runSpeedMultiplier : walkSpeed;
         _rb.linearVelocity = _moveInput * speed;
