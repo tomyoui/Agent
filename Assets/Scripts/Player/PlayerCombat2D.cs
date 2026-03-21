@@ -12,53 +12,90 @@ public class PlayerCombat2D : MonoBehaviour
     public class ComboEvent : UnityEvent<int> { }
 
     [Header("Hit Detection")]
+    [Tooltip("공격 판정 기준점 Transform")]
     [SerializeField] private Transform attackPoint;
+    [Tooltip("강공격 판정 반경")]
     [SerializeField] private float heavyAttackRange = 1.4f;
+    [Tooltip("공격 대상 레이어 마스크")]
     [SerializeField] private LayerMask targetLayer;
+    [Tooltip("강공격 데미지")]
     [SerializeField] private int heavyDamage = 25;
 
     [Header("Combo Step 1")]
+    [Tooltip("콤보 1타 데미지")]
     [SerializeField] private int combo1Damage = 8;
+    [Tooltip("콤보 1타 판정 반경")]
     [SerializeField] private float combo1Range = 0.9f;
+    [Tooltip("콤보 1타 콘 각도")]
     [SerializeField] private float combo1Angle = 70f;
 
     [Header("Combo Step 2")]
+    [Tooltip("콤보 2타 데미지")]
     [SerializeField] private int combo2Damage = 12;
+    [Tooltip("콤보 2타 판정 반경")]
     [SerializeField] private float combo2Range = 1.1f;
+    [Tooltip("콤보 2타 콘 각도")]
     [SerializeField] private float combo2Angle = 95f;
 
     [Header("Combo Step 3")]
+    [Tooltip("콤보 3타 데미지")]
     [SerializeField] private int combo3Damage = 18;
+    [Tooltip("콤보 3타 판정 반경")]
     [SerializeField] private float combo3Range = 1.3f;
+    [Tooltip("콤보 3타 콘 각도")]
     [SerializeField] private float combo3Angle = 120f;
 
     [Header("Combo Timing")]
+    [Tooltip("최대 콤보 단계 수")]
     [SerializeField] private int maxComboStep = 3;
+    [Tooltip("다음 콤보 입력을 받아들이는 시간 창 (초)")]
     [SerializeField] private float comboInputWindow = 0.35f;
+    [Tooltip("콤보가 초기화되기까지의 대기 시간 (초)")]
     [SerializeField] private float comboResetDelay = 0.8f;
+    [Tooltip("공격 간 최소 쿨다운 (초)")]
     [SerializeField] private float attackCooldown = 0.25f;
 
     [Header("Heavy Attack")]
+    [Tooltip("강공격으로 판정되는 최소 버튼 홀드 시간 (초)")]
     [SerializeField] private float heavyHoldThreshold = 0.4f;
+    [Tooltip("강공격 콘 각도")]
     [SerializeField] private float heavyAttackAngle = 110f;
 
     [Header("Aim")]
+    [Tooltip("플레이어 중심에서 공격 포인트까지의 거리")]
     [SerializeField] private float attackPointDistance = 0.9f;
 
     [Header("Audio")]
+    [Tooltip("피격·공격 사운드를 재생할 AudioSource")]
     [SerializeField] private AudioSource hitAudioSource;
+    [Tooltip("일반 공격 피격 시 재생할 클립 목록")]
     [SerializeField] private AudioClip[] hitClips;
+    [Tooltip("강공격 스윙 시 재생할 클립 목록")]
     [SerializeField] private AudioClip[] heavySwingClips;
 
+    [Header("Hit Audio")]
+    [Tooltip("피격음 재생용 AudioSource")]
+    [SerializeField] private AudioSource audioSource;
+    [Tooltip("총 피격 시 재생할 클립")]
+    [SerializeField] private AudioClip gunHitSfx;
+    [Tooltip("근접 피격 시 재생할 클립")]
+    [SerializeField] private AudioClip meleeHitSfx;
+    [SerializeField, Range(0f, 1f)] private float hitSfxVolume = 0.9f;
+
     [Header("Hit Stop")]
+    [Tooltip("히트 스톱 지속 시간 (초)")]
     [SerializeField] private float hitStopDuration = 0.05f;
 
     [Header("Knockback")]
+    [Tooltip("넉백 힘")]
     [SerializeField] private float knockbackForce = 4f;
+    [Tooltip("넉백 지속 시간 (초)")]
     [SerializeField] private float knockbackDuration = 0.12f;
 
     [Header("Events")]
+    [Tooltip("콤보 공격 시 발생하는 이벤트 (콤보 단계 전달)")]
     [SerializeField] private ComboEvent onComboAttack;
+    [Tooltip("강공격 시 발생하는 이벤트")]
     [SerializeField] private UnityEvent onHeavyAttack;
 
     private PlayerInput _playerInput;
@@ -83,7 +120,7 @@ public class PlayerCombat2D : MonoBehaviour
 
         if (targetLayer.value == 0)
         {
-            Debug.LogWarning("[PlayerCombat2D] targetLayer is empty. No enemies will be hit until a layer is assigned.", this);
+            Debug.LogWarning("[PlayerCombat2D] targetLayer가 비어 있습니다. 레이어를 지정하기 전까지 적에게 데미지가 들어가지 않습니다.", this);
         }
     }
 
@@ -225,7 +262,7 @@ public class PlayerCombat2D : MonoBehaviour
         if (damagedCount > 0)
         {
             ApplyKnockbackToHitTargets(origin, aimDirection, range, attackAngle);
-            PlayRandomHitSound();
+            PlayHitSfx(isMelee: true);
             TriggerHitStop();
         }
     }
@@ -248,7 +285,7 @@ public class PlayerCombat2D : MonoBehaviour
 
         if (!_hasLoggedMissingAttackPoint)
         {
-            Debug.LogError("[PlayerCombat2D] attackPoint is missing. Assign Attack Point or add a child named 'AttackPoint'.", this);
+            Debug.LogError("[PlayerCombat2D] attackPoint가 없습니다. AttackPoint를 지정하거나 'AttackPoint'라는 이름의 자식 오브젝트를 추가하세요.", this);
             _hasLoggedMissingAttackPoint = true;
         }
 
@@ -302,17 +339,37 @@ public class PlayerCombat2D : MonoBehaviour
         }
     }
 
+    // 근접(isMelee=true) 또는 총(isMelee=false) 피격음 재생
+    public void PlayHitSfx(bool isMelee)
+    {
+        if (audioSource == null)
+        {
+            Debug.LogWarning("[PlayerCombat2D] AudioSource가 설정되지 않았습니다.", this);
+            return;
+        }
+
+        AudioClip clip = isMelee ? meleeHitSfx : gunHitSfx;
+
+        if (clip == null)
+        {
+            Debug.LogWarning("[PlayerCombat2D] 피격 사운드 클립이 설정되지 않았습니다.", this);
+            return;
+        }
+
+        audioSource.PlayOneShot(clip, hitSfxVolume);
+    }
+
     private void PlayRandomHitSound()
     {
         if (hitAudioSource == null)
         {
-            Debug.LogWarning("[PlayerCombat2D] Hit sound skipped: hitAudioSource is null.", this);
+            Debug.LogWarning("[PlayerCombat2D] 피격음 재생 생략: hitAudioSource가 null입니다.", this);
             return;
         }
 
         if (hitClips == null || hitClips.Length == 0)
         {
-            Debug.LogWarning("[PlayerCombat2D] Hit sound skipped: hitClips is empty.", this);
+            Debug.LogWarning("[PlayerCombat2D] 피격음 재생 생략: hitClips가 비어 있습니다.", this);
             return;
         }
 
@@ -320,11 +377,11 @@ public class PlayerCombat2D : MonoBehaviour
         AudioClip clip = hitClips[clipIndex];
         if (clip == null)
         {
-            Debug.LogWarning($"[PlayerCombat2D] Hit sound skipped: clip at index {clipIndex} is null.", this);
+            Debug.LogWarning($"[PlayerCombat2D] 피격음 재생 생략: 인덱스 {clipIndex}의 클립이 null입니다.", this);
             return;
         }
 
-        Debug.Log($"[PlayerCombat2D] Playing hit sound '{clip.name}' from index {clipIndex}.", this);
+        Debug.Log($"[PlayerCombat2D] 피격음 재생: '{clip.name}' (인덱스 {clipIndex})", this);
         hitAudioSource.PlayOneShot(clip);
     }
 
@@ -332,13 +389,13 @@ public class PlayerCombat2D : MonoBehaviour
     {
         if (hitAudioSource == null)
         {
-            Debug.LogWarning("[PlayerCombat2D] Heavy swing sound skipped: hitAudioSource is null.", this);
+            Debug.LogWarning("[PlayerCombat2D] 강공격 스윙음 재생 생략: hitAudioSource가 null입니다.", this);
             return;
         }
 
         if (heavySwingClips == null || heavySwingClips.Length == 0)
         {
-            Debug.LogWarning("[PlayerCombat2D] Heavy swing sound skipped: heavySwingClips is empty.", this);
+            Debug.LogWarning("[PlayerCombat2D] 강공격 스윙음 재생 생략: heavySwingClips가 비어 있습니다.", this);
             return;
         }
 
@@ -346,11 +403,11 @@ public class PlayerCombat2D : MonoBehaviour
         AudioClip clip = heavySwingClips[clipIndex];
         if (clip == null)
         {
-            Debug.LogWarning($"[PlayerCombat2D] Heavy swing sound skipped: clip at index {clipIndex} is null.", this);
+            Debug.LogWarning($"[PlayerCombat2D] 강공격 스윙음 재생 생략: 인덱스 {clipIndex}의 클립이 null입니다.", this);
             return;
         }
 
-        Debug.Log($"[PlayerCombat2D] Playing heavy swing sound '{clip.name}' from index {clipIndex}.", this);
+        Debug.Log($"[PlayerCombat2D] 강공격 스윙음 재생: '{clip.name}' (인덱스 {clipIndex})", this);
         hitAudioSource.PlayOneShot(clip);
     }
 
@@ -439,20 +496,20 @@ public class PlayerCombat2D : MonoBehaviour
         Vector2 leftEdge = Quaternion.Euler(0f, 0f, -halfAngle) * aimDirection;
         Vector2 rightEdge = Quaternion.Euler(0f, 0f, halfAngle) * aimDirection;
 
-        // Player origin marker.
+        // 플레이어 원점 마커
         Gizmos.color = Color.white;
         Gizmos.DrawWireSphere(origin, 0.1f);
 
-        // Current attack direction.
+        // 현재 공격 방향
         Gizmos.color = Color.cyan;
         Gizmos.DrawLine(origin, origin + (Vector3)(aimDirection * coneRange));
 
-        // Cone edge lines.
+        // 콘 경계선
         Gizmos.color = Color.yellow;
         Gizmos.DrawLine(origin, origin + (Vector3)(leftEdge * coneRange));
         Gizmos.DrawLine(origin, origin + (Vector3)(rightEdge * coneRange));
 
-        // Cone arc.
+        // 콘 호
         const int arcSegments = 24;
         Vector3 previousPoint = origin + (Vector3)(leftEdge * coneRange);
         for (int i = 1; i <= arcSegments; i++)

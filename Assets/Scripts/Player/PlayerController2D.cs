@@ -6,12 +6,17 @@ using UnityEngine.InputSystem;
 public class PlayerController2D : MonoBehaviour
 {
     [Header("Movement")]
+    [Tooltip("기본 이동 속도")]
     [SerializeField] private float walkSpeed = 4.0f;
+    [Tooltip("달리기 시 walkSpeed에 곱해지는 배율")]
     [SerializeField] private float runSpeedMultiplier = 3.0f;
 
     [Header("Dash")]
+    [Tooltip("대시 이동 속도")]
     [SerializeField] private float dashSpeed = 12.0f;
+    [Tooltip("대시 지속 시간 (초)")]
     [SerializeField] private float dashDuration = 0.15f;
+    [Tooltip("대시 쿨다운 (초)")]
     [SerializeField] private float dashCooldown = 0.5f;
 
     private Rigidbody2D _rb;
@@ -27,10 +32,7 @@ public class PlayerController2D : MonoBehaviour
     private float _dashEndTime;
     private float _nextDashTime;
 
-    /// <summary>
-    /// 외부 컴포넌트(백스텝 등)가 velocity를 제어 중일 때 true로 설정.
-    /// true인 동안 FixedUpdate의 일반 이동이 중단됩니다.
-    /// </summary>
+    // true인 동안 FixedUpdate의 일반 이동이 중단됨 (백스텝 등 외부 제어용)
     public bool IsVelocityLocked { get; set; }
 
     private void Awake()

@@ -96,6 +96,14 @@ public class PlayerRangedAttack2D : MonoBehaviour
     [SerializeField] private float cooldown = 0.6f;
 
     // ─────────────────────────────────────────────
+    // Inspector — 오디오
+    // ─────────────────────────────────────────────
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip fireSfx;
+    [SerializeField, Range(0f, 1f)] private float fireSfxVolume = 0.9f;
+
+    // ─────────────────────────────────────────────
     // Inspector — 백스텝 (유틸 이동)
     // ─────────────────────────────────────────────
     [Header("Backstep — Utility Move")]
@@ -127,6 +135,7 @@ public class PlayerRangedAttack2D : MonoBehaviour
     // 백스텝이 PlayerController2D.FixedUpdate와 충돌하지 않도록 참조 보관
     private Rigidbody2D _rb;
     private PlayerController2D _controller; // null-safe: 없어도 동작
+    private PlayerCombat2D _playerCombat;   // 총 피격음 호출용, null-safe
 
     // ─────────────────────────────────────────────
     // Unity 생명주기
@@ -136,6 +145,7 @@ public class PlayerRangedAttack2D : MonoBehaviour
         _mainCamera = Camera.main;
         _rb = GetComponent<Rigidbody2D>();
         _controller = GetComponent<PlayerController2D>(); // 없으면 null (경고 없이 처리)
+        _playerCombat = GetComponent<PlayerCombat2D>();   // 없으면 null (경고 없이 처리)
 
         if (_rb == null)
             Debug.LogWarning("[DoomGun] Rigidbody2D가 없습니다. 백스텝이 동작하지 않습니다.", this);
@@ -321,6 +331,7 @@ public class PlayerRangedAttack2D : MonoBehaviour
     {
         // [이펙트 연결 지점] 총구 이펙트
         OnMuzzleFlash(origin, aimDir);
+        PlayFireSfx();
 
         LayerMask combinedMask = targetLayer | wallLayer;
         RaycastHit2D hit = Physics2D.Raycast(origin, aimDir, range, combinedMask);
@@ -350,6 +361,7 @@ public class PlayerRangedAttack2D : MonoBehaviour
         }
 
         damageable.TakeDamage(damage);
+        _playerCombat?.PlayHitSfx(false); // 총 피격음
         Debug.Log($"[DoomGun] [{attribute}] [{shotIndex + 1}] 피격: {hit.collider.gameObject.name} / 데미지: {damage}", this);
 
         // [이펙트 연결 지점] 파멸 속성 피격 이펙트
@@ -386,6 +398,19 @@ public class PlayerRangedAttack2D : MonoBehaviour
     // VFX/SFX 추가 시 여기에 코드 채울 것
     // ─────────────────────────────────────────────
 #pragma warning disable IDE0060
+
+    // ─────────────────────────────────────────────
+    // 발사 사운드
+    // ─────────────────────────────────────────────
+    private void PlayFireSfx()
+    {
+        if (audioSource == null || fireSfx == null)
+        {
+            Debug.LogWarning("[DoomGun] audioSource 또는 fireSfx가 비어있습니다. 인스펙터에서 설정하세요.", this);
+            return;
+        }
+        audioSource.PlayOneShot(fireSfx, fireSfxVolume);
+    }
 
     /// <summary>[파멸 총] 발사 시 총구 이펙트. 예: Muzzle Flash 파티클</summary>
     private void OnMuzzleFlash(Vector2 origin, Vector2 direction)

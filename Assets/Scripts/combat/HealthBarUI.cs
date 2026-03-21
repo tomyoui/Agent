@@ -1,8 +1,11 @@
 using UnityEngine;
 
+// HP 비율에 따라 fillTransform 스케일을 조정하는 체력바 UI
 public class HealthBarUI : MonoBehaviour
 {
+    [Tooltip("HP를 읽어올 대상 Health 컴포넌트")]
     [SerializeField] private Health targetHealth;
+    [Tooltip("HP 비율에 따라 스케일이 변경될 채우기 Transform")]
     [SerializeField] private Transform fillTransform;
 
     private Vector3 _initialScale;

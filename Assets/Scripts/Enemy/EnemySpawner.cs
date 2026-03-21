@@ -2,18 +2,23 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// 일정 간격으로 적 프리팹을 스폰 포인트에 생성하고 최대 생존 수를 관리하는 스포너
 [DisallowMultipleComponent]
 public class EnemySpawner : MonoBehaviour
 {
     [Header("Spawner Setup")]
+    [Tooltip("생성할 적 프리팹")]
     [SerializeField] private GameObject enemyPrefab;
+    [Tooltip("적을 생성할 스폰 포인트 목록")]
     [SerializeField] private List<Transform> spawnPoints = new List<Transform>();
 
     [Header("Spawn Rules")]
+    [Tooltip("적 생성 간격 (초)")]
     [SerializeField] private float spawnInterval = 2f;
+    [Tooltip("동시에 살아있을 수 있는 최대 적 수")]
     [SerializeField] private int maxAliveEnemies = 5;
 
-    // We keep references to spawned enemies and remove nulls (destroyed enemies) each cycle.
+    // 생성된 적 참조를 보관하며, 매 사이클마다 파괴된 항목을 제거
     private readonly List<GameObject> _spawnedEnemies = new List<GameObject>();
     private Coroutine _spawnLoopRoutine;
 

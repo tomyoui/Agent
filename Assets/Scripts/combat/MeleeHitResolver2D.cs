@@ -1,9 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// 근접 공격의 원형 범위 및 콘 판정을 처리하는 정적 유틸리티 클래스
 public static class MeleeHitResolver2D
 {
-    // Shared helper so Player and Enemy can use the same broad-phase + damage pipeline.
+    // 플레이어·적이 공통으로 사용하는 브로드페이즈 + 데미지 파이프라인 헬퍼
     public static int DealDamageInRange(
         Vector2 origin,
         float range,
@@ -32,13 +33,13 @@ public static class MeleeHitResolver2D
 
         if (debugContext != null)
         {
-            Debug.Log($"[{debugLabel}] Damaged {damagedCount} target(s) in range.", debugContext);
+            Debug.Log($"[{debugLabel}] 범위 내 {damagedCount}개 대상에 데미지 적용.", debugContext);
         }
 
         return damagedCount;
     }
 
-    // Uses circle overlap as broad-phase, then applies cone filtering for directional melee attacks.
+    // 원형 브로드페이즈 후 콘 필터링을 적용하는 방향성 근접 공격 처리
     public static int DealDamageInCone(
         Vector2 origin,
         Vector2 forwardDirection,
@@ -97,7 +98,7 @@ public static class MeleeHitResolver2D
 
         if (debugContext != null)
         {
-            Debug.Log($"[{debugLabel}] Damaged {damagedCount} target(s) in cone.", debugContext);
+            Debug.Log($"[{debugLabel}] 콘 내 {damagedCount}개 대상에 데미지 적용.", debugContext);
         }
 
         return damagedCount;
