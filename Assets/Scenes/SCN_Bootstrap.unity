@@ -643,6 +643,7 @@ MonoBehaviour:
   target: {fileID: 1814709066}
   smoothTime: 0.15
   fixedZ: -10
+  shakeDecaySpeed: 10
 --- !u!1 &1228407331
 GameObject:
   m_ObjectHideFlags: 0
@@ -1026,9 +1027,37 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 997e2ff16d27f4bfe9d5cb15ca457511, type: 3}
   heavySwingClips:
   - {fileID: 8300000, guid: 97df39aa9c398f842817845dc32abdd3, type: 3}
+  audioSource: {fileID: 1814709069}
+  gunHitSfx: {fileID: 8300000, guid: f32b4dac58c7c48409ba351a18ebfe88, type: 3}
+  meleeHitSfx: {fileID: 8300000, guid: f32b4dac58c7c48409ba351a18ebfe88, type: 3}
+  hitSfxVolume: 0.9
   hitStopDuration: 0.06
+  combo1HitStop: 0.03
+  combo2HitStop: 0.05
+  combo3HitStop: 0.1
+  heavyHitStop: 0.12
   knockbackForce: 9
   knockbackDuration: 0.2
+  combo1KnockbackForce: 2
+  combo2KnockbackForce: 3.5
+  combo3KnockbackForce: 6
+  heavyKnockbackForce: 7
+  combo1ShakeIntensity: 0.04
+  combo2ShakeIntensity: 0.07
+  combo3ShakeIntensity: 0.12
+  heavyShakeIntensity: 0.15
+  combo1StaggerDuration: 0.12
+  combo2StaggerDuration: 0.18
+  combo3StaggerDuration: 0.26
+  heavyStaggerDuration: 0.35
+  combo1SlowMultiplier: 0.35
+  combo2SlowMultiplier: 0.28
+  combo3SlowMultiplier: 0.18
+  heavySlowMultiplier: 0.08
+  combo1SlowDuration: 0.1
+  combo2SlowDuration: 0.13
+  combo3SlowDuration: 0.17
+  heavySlowDuration: 0.24
   onComboAttack:
     m_PersistentCalls:
       m_Calls: []
@@ -1158,6 +1187,11 @@ MonoBehaviour:
   currentHP: 0
   hitFlashDuration: 0.08
   hitFlashColor: {r: 1, g: 0, b: 0, a: 1}
+  deathVfxPrefab: {fileID: 0}
+  deathVfxLifetime: 0.5
+  deathAudioSource: {fileID: 0}
+  deathSfx: {fileID: 0}
+  deathSfxVolume: 1
 --- !u!114 &1814709068
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1312,6 +1346,14 @@ MonoBehaviour:
     m_Bits: 0
   firePoint: {fileID: 1644201522}
   cooldown: 1.5
+  audioSource: {fileID: 1814709069}
+  fireSfx: {fileID: 8300000, guid: 776e9c03e0f6f4836b7c42666fa9cf84, type: 3}
+  fireSfxVolume: 0.5
+  gunHitStopDuration: 0.02
+  muzzleFlashPrefab: {fileID: 0}
+  hitEffectPrefab: {fileID: 0}
+  tracerRenderer: {fileID: 0}
+  tracerDuration: 0.05
   enableBackstep: 1
   backstepDistance: 2.5
   backstepDuration: 0.2
@@ -1334,6 +1376,10 @@ PrefabInstance:
     - target: {fileID: 3493676708667136215, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: maxHP
       value: 500
+      objectReference: {fileID: 0}
+    - target: {fileID: 3493676708667136215, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
+      propertyPath: deathSfx
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: 6003926066014574684, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_LocalPosition.x

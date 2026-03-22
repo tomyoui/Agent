@@ -83,14 +83,89 @@ public class PlayerCombat2D : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float hitSfxVolume = 0.9f;
 
     [Header("Hit Stop")]
-    [Tooltip("히트 스톱 지속 시간 (초)")]
+    [Tooltip("기본 히트 스탑 지속 시간 (초). 콤보별 값이 없거나 외부 호출 시 사용되는 폴백.")]
     [SerializeField] private float hitStopDuration = 0.05f;
 
+    // [추가] 콤보 단계별 히트스탑 차등.
+    // 3타는 마무리타 느낌으로 가장 길게 설정.
+    [Header("Hit Stop — 콤보 차등")]
+    [Tooltip("콤보 1타 히트스탑 (초). 가볍고 짧게.")]
+    [SerializeField] private float combo1HitStop = 0.03f;
+    [Tooltip("콤보 2타 히트스탑 (초).")]
+    [SerializeField] private float combo2HitStop = 0.05f;
+    [Tooltip("콤보 3타 히트스탑 (초). 마무리타 — 가장 길게.")]
+    [SerializeField] private float combo3HitStop = 0.10f;
+    [Tooltip("강공격 히트스탑 (초).")]
+    [SerializeField] private float heavyHitStop = 0.12f;
+
     [Header("Knockback")]
-    [Tooltip("넉백 힘")]
-    [SerializeField] private float knockbackForce = 4f;
-    [Tooltip("넉백 지속 시간 (초)")]
-    [SerializeField] private float knockbackDuration = 0.12f;
+    [Tooltip("넉백 힘 (폴백). 콤보별 값이 설정되어 있으면 해당 값 우선 적용.")]
+    [SerializeField] private float knockbackForce = 5f;
+    [Tooltip("넉백 지속 시간 (초). 모든 콤보에 공통 적용.\n" +
+             "너무 짧으면 날아가는 구간이 눈에 안 보임. 0.18~0.25 권장.")]
+    [SerializeField] private float knockbackDuration = 0.20f;
+
+    // [추가] 콤보 단계별 넉백 힘 차등.
+    // 3타와 강공격은 확실히 날아가는 느낌이 나도록 더 강하게 설정.
+    // 적 Rigidbody2D mass=1 기준: Impulse 후 초기속도 = force/mass (units/s)
+    // walkSpeed=2.5 대비 확실히 빠르게 밀려야 읽힘 → 최소 4 이상 권장.
+    [Header("Knockback — 콤보 차등")]
+    [Tooltip("콤보 1타 넉백 힘. 가볍게 밀리는 느낌.")]
+    [SerializeField] private float combo1KnockbackForce = 4f;
+    [Tooltip("콤보 2타 넉백 힘.")]
+    [SerializeField] private float combo2KnockbackForce = 6f;
+    [Tooltip("콤보 3타 넉백 힘. 마무리타 — 확실히 날아가는 느낌.")]
+    [SerializeField] private float combo3KnockbackForce = 9f;
+    [Tooltip("강공격 넉백 힘. 가장 강하게.")]
+    [SerializeField] private float heavyKnockbackForce = 12f;
+
+    // [추가] 콤보 단계별 카메라 셰이크 강도.
+    // 너무 과한 흔들림 방지를 위해 기본값을 작게 설정.
+    [Header("Camera Shake")]
+    [Tooltip("콤보 1타 카메라 셰이크 강도.")]
+    [SerializeField] private float combo1ShakeIntensity = 0.04f;
+    [Tooltip("콤보 2타 카메라 셰이크 강도.")]
+    [SerializeField] private float combo2ShakeIntensity = 0.07f;
+    [Tooltip("콤보 3타 카메라 셰이크 강도. 마무리타 — 가장 강하게.")]
+    [SerializeField] private float combo3ShakeIntensity = 0.12f;
+    [Tooltip("강공격 카메라 셰이크 강도.")]
+    [SerializeField] private float heavyShakeIntensity = 0.15f;
+
+    // [추가] 적 피격 경직.
+    // 넉백(물리 이동)과 별개로 적 AI를 짧게 멈추게 하는 행동 경직.
+    // 넉백 종료 직후에도 이 시간만큼 추가로 AI가 멈춰 "맞았다" 반응이 읽힘.
+    // 콤보가 빠를 때 샌드백이 되지 않도록 Mathf.Max로 중첩을 막아둠.
+    [Header("Hit Stagger — 피격 경직")]
+    [Tooltip("콤보 1타 피격 경직 시간 (초). 짧은 멈칫.")]
+    [SerializeField] private float combo1StaggerDuration = 0.12f;
+    [Tooltip("콤보 2타 피격 경직 시간 (초).")]
+    [SerializeField] private float combo2StaggerDuration = 0.18f;
+    [Tooltip("콤보 3타 피격 경직 시간 (초). 마무리타 — 가장 길게.")]
+    [SerializeField] private float combo3StaggerDuration = 0.26f;
+    [Tooltip("강공격 피격 경직 시간 (초). 적이 확실히 멈추는 느낌.")]
+    [SerializeField] private float heavyStaggerDuration = 0.35f;
+
+    // [추가] 공격 중 이동 감속.
+    // 공격 직후 짧은 시간 동안 이동 속도에 배율을 적용해 타격 무게감을 부여.
+    // 1 = 감속 없음, 0 = 완전 정지. 0.1~0.4 범위가 타격감과 조작성 사이 균형점.
+    [Header("Attack Slow — 이동 감속")]
+    [Tooltip("콤보 1타 이동 속도 배율 (0~1). 짧고 가볍게.")]
+    [SerializeField, Range(0f, 1f)] private float combo1SlowMultiplier = 0.35f;
+    [Tooltip("콤보 2타 이동 속도 배율 (0~1).")]
+    [SerializeField, Range(0f, 1f)] private float combo2SlowMultiplier = 0.28f;
+    [Tooltip("콤보 3타 이동 속도 배율 (0~1). 마무리타 — 가장 무겁게.")]
+    [SerializeField, Range(0f, 1f)] private float combo3SlowMultiplier = 0.18f;
+    [Tooltip("강공격 이동 속도 배율 (0~1). 거의 멈추는 느낌.")]
+    [SerializeField, Range(0f, 1f)] private float heavySlowMultiplier = 0.08f;
+
+    [Tooltip("콤보 1타 감속 지속 시간 (초).")]
+    [SerializeField] private float combo1SlowDuration = 0.10f;
+    [Tooltip("콤보 2타 감속 지속 시간 (초).")]
+    [SerializeField] private float combo2SlowDuration = 0.13f;
+    [Tooltip("콤보 3타 감속 지속 시간 (초).")]
+    [SerializeField] private float combo3SlowDuration = 0.17f;
+    [Tooltip("강공격 감속 지속 시간 (초).")]
+    [SerializeField] private float heavySlowDuration = 0.24f;
 
     [Header("Events")]
     [Tooltip("콤보 공격 시 발생하는 이벤트 (콤보 단계 전달)")]
@@ -109,6 +184,13 @@ public class PlayerCombat2D : MonoBehaviour
     private Camera _mainCamera;
     private bool _hasLoggedMissingAttackPoint;
     private Coroutine _hitStopRoutine;
+    private Coroutine _attackSlowRoutine;
+
+    // 공격 적중 시 카메라 셰이크 호출용 (null-safe: 없어도 동작)
+    private CameraFollow2D _cameraShake;
+
+    // 공격 중 이동 감속 호출용 (null-safe: 없어도 동작)
+    private PlayerController2D _controller;
 
     private void Awake()
     {
@@ -117,6 +199,14 @@ public class PlayerCombat2D : MonoBehaviour
         _mainCamera = Camera.main;
         hitAudioSource = hitAudioSource != null ? hitAudioSource : GetComponent<AudioSource>();
         ResolveAttackPoint();
+
+        // [추가] 카메라 셰이크 컴포넌트 탐색. 없으면 경고만 출력하고 셰이크 없이 동작.
+        _cameraShake = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
+        if (_cameraShake == null)
+            Debug.LogWarning("[PlayerCombat2D] CameraFollow2D를 찾을 수 없습니다. 카메라 셰이크가 동작하지 않습니다.", this);
+
+        // [추가] 이동 감속용 PlayerController2D 탐색. null-safe: 없으면 감속 없이 동작.
+        _controller = GetComponent<PlayerController2D>();
 
         if (targetLayer.value == 0)
         {
@@ -139,6 +229,10 @@ public class PlayerCombat2D : MonoBehaviour
     {
         _attackAction.started -= OnAttackStarted;
         _attackAction.canceled -= OnAttackCanceled;
+
+        // 감속 도중 컴포넌트가 꺼지면 배율이 낮은 채로 남음 — 즉시 복구
+        if (_controller != null)
+            _controller.AttackSpeedMultiplier = 1f;
     }
 
     private void Update()
@@ -187,24 +281,32 @@ public class PlayerCombat2D : MonoBehaviour
         }
 
         attackPoint.position = (Vector2)transform.position + (_lastAimDirection * attackPointDistance);
+
+        // [추가] AttackPoint 회전을 조준 방향으로 업데이트.
+        // MeleeSlashVFX 등 AttackPoint를 기준으로 스폰되는 VFX가
+        // transform.rotation으로 조준 방향을 읽을 수 있도록.
+        float aimAngle = Mathf.Atan2(_lastAimDirection.y, _lastAimDirection.x) * Mathf.Rad2Deg;
+        attackPoint.rotation = Quaternion.Euler(0f, 0f, aimAngle);
     }
 
     private void OnAttackStarted(InputAction.CallbackContext context)
     {
         _attackPressStartTime = Time.time;
+        // [수정] 콤보 공격은 버튼 누르는 순간(pressed) 즉시 발동.
+        // 이전에는 canceled(릴리즈)에서 발동하여 입력 반응이 늦게 느껴졌음.
+        TriggerComboAttack();
     }
 
     private void OnAttackCanceled(InputAction.CallbackContext context)
     {
         float heldTime = Time.time - _attackPressStartTime;
 
+        // 강공격만 릴리즈 시점에 홀드 시간 기준으로 발동.
+        // 콤보는 이미 OnAttackStarted에서 처리됨.
         if (heldTime >= heavyHoldThreshold)
         {
             TriggerHeavyAttack();
-            return;
         }
-
-        TriggerComboAttack();
     }
 
     private void TriggerComboAttack()
@@ -224,7 +326,10 @@ public class PlayerCombat2D : MonoBehaviour
         _nextComboAttackTime = Time.time + Mathf.Max(0.01f, attackCooldown);
 
         GetComboStepStats(_currentComboStep, out int damage, out float range, out float angle);
-        PerformAttack(range, damage, angle, $"Combo {_currentComboStep}");
+        // [추가] 공격 스윙 즉시 이동 감속 적용 — 타격 동작에 무게감 부여
+        ApplyAttackSlow(_currentComboStep);
+        // [수정] 콤보 단계를 전달해 히트스탑/넉백/셰이크를 단계별로 차등 적용
+        PerformAttack(range, damage, angle, $"Combo {_currentComboStep}", comboStep: _currentComboStep);
         onComboAttack?.Invoke(_currentComboStep);
     }
 
@@ -234,11 +339,15 @@ public class PlayerCombat2D : MonoBehaviour
         _lastComboTime = 0f;
 
         PlayRandomHeavySwingSound();
-        PerformAttack(heavyAttackRange, heavyDamage, heavyAttackAngle, "Heavy");
+        // [추가] 강공격 스윙 즉시 이동 감속 — 콤보보다 더 길고 강하게
+        ApplyAttackSlow(comboStep: 0);
+        // [수정] comboStep: 0 = 강공격 전용 히트스탑/넉백/셰이크 적용
+        PerformAttack(heavyAttackRange, heavyDamage, heavyAttackAngle, "Heavy", comboStep: 0);
         onHeavyAttack?.Invoke();
     }
 
-    private void PerformAttack(float range, int damage, float attackAngle, string attackType)
+    // comboStep: 0=강공격, 1~3=콤보 단계. 히트스탑/넉백/셰이크 강도 분기에 사용.
+    private void PerformAttack(float range, int damage, float attackAngle, string attackType, int comboStep = 1)
     {
         if (!ResolveAttackPoint())
         {
@@ -256,14 +365,19 @@ public class PlayerCombat2D : MonoBehaviour
             damage,
             targetLayer,
             this,
-            $"PlayerCombat2D/{attackType}"
+            $"PlayerCombat2D/{attackType}",
+            CombatAttribute.Justice   // 근접 검 공격 = 정의 속성
         );
 
         if (damagedCount > 0)
         {
-            ApplyKnockbackToHitTargets(origin, aimDirection, range, attackAngle);
+            // [수정] 콤보 단계별로 넉백 힘, 히트스탑, 카메라 셰이크 강도를 달리 적용
+            // [추가] 피격 경직(staggerDuration)을 함께 전달 — 넉백 루프 내에서 ApplyStagger 호출됨
+            ApplyKnockbackToHitTargets(origin, aimDirection, range, attackAngle,
+                GetKnockbackForce(comboStep), GetStaggerDuration(comboStep));
             PlayHitSfx(isMelee: true);
-            TriggerHitStop();
+            TriggerHitStop(GetHitStopDuration(comboStep));
+            _cameraShake?.Shake(GetShakeIntensity(comboStep));
         }
     }
 
@@ -411,9 +525,12 @@ public class PlayerCombat2D : MonoBehaviour
         hitAudioSource.PlayOneShot(clip);
     }
 
-    private void ApplyKnockbackToHitTargets(Vector2 origin, Vector2 aimDirection, float range, float attackAngle)
+    // forceOverride < 0이면 Inspector의 knockbackForce 폴백 사용
+    // staggerDuration > 0이면 넉백과 별개로 피격 경직도 함께 적용
+    private void ApplyKnockbackToHitTargets(Vector2 origin, Vector2 aimDirection, float range, float attackAngle, float forceOverride = -1f, float staggerDuration = 0f)
     {
-        if (knockbackForce <= 0f || knockbackDuration <= 0f)
+        float force = forceOverride >= 0f ? forceOverride : knockbackForce;
+        if (force <= 0f || knockbackDuration <= 0f)
         {
             return;
         }
@@ -458,13 +575,21 @@ public class PlayerCombat2D : MonoBehaviour
                 continue;
             }
 
-            knockbackReceiver.ApplyKnockback(toTarget.normalized, knockbackForce, knockbackDuration);
+            knockbackReceiver.ApplyKnockback(toTarget.normalized, force, knockbackDuration);
+
+            // [추가] 넉백과 별개로 피격 경직 적용.
+            // 경직은 행동(추적/공격 AI) 차단이고, 넉백은 물리 이동 — 역할이 다름.
+            if (staggerDuration > 0f)
+                knockbackReceiver.ApplyStagger(staggerDuration);
         }
     }
 
-    private void TriggerHitStop()
+    // [수정] public으로 변경 — PlayerRangedAttack2D 등 외부에서도 히트스탑을 요청할 수 있도록.
+    // durationOverride >= 0이면 해당 값 사용, 아니면 Inspector의 hitStopDuration 폴백 사용.
+    public void TriggerHitStop(float durationOverride = -1f)
     {
-        if (hitStopDuration <= 0f)
+        float d = durationOverride >= 0f ? durationOverride : hitStopDuration;
+        if (d <= 0f)
         {
             return;
         }
@@ -475,15 +600,120 @@ public class PlayerCombat2D : MonoBehaviour
             Time.timeScale = 1f;
         }
 
-        _hitStopRoutine = StartCoroutine(HitStopRoutine());
+        _hitStopRoutine = StartCoroutine(HitStopRoutine(d));
     }
 
-    private IEnumerator HitStopRoutine()
+    // [수정] duration을 파라미터로 받아 콤보별 차등 히트스탑 지원
+    private IEnumerator HitStopRoutine(float duration)
     {
         Time.timeScale = 0f;
-        yield return new WaitForSecondsRealtime(hitStopDuration);
+        yield return new WaitForSecondsRealtime(duration);
         Time.timeScale = 1f;
         _hitStopRoutine = null;
+    }
+
+    // ─────────────────────────────────────────────
+    // 콤보 단계별 피드백 수치 분기 헬퍼
+    // comboStep: 0=강공격, 1=1타, 2=2타, 3이상=3타(마무리)
+    // ─────────────────────────────────────────────
+    private float GetHitStopDuration(int comboStep)
+    {
+        switch (comboStep)
+        {
+            case 0: return heavyHitStop;
+            case 1: return combo1HitStop;
+            case 2: return combo2HitStop;
+            default: return combo3HitStop;
+        }
+    }
+
+    private float GetKnockbackForce(int comboStep)
+    {
+        switch (comboStep)
+        {
+            case 0: return heavyKnockbackForce;
+            case 1: return combo1KnockbackForce;
+            case 2: return combo2KnockbackForce;
+            default: return combo3KnockbackForce;
+        }
+    }
+
+    private float GetShakeIntensity(int comboStep)
+    {
+        switch (comboStep)
+        {
+            case 0: return heavyShakeIntensity;
+            case 1: return combo1ShakeIntensity;
+            case 2: return combo2ShakeIntensity;
+            default: return combo3ShakeIntensity;
+        }
+    }
+
+    private float GetStaggerDuration(int comboStep)
+    {
+        switch (comboStep)
+        {
+            case 0: return heavyStaggerDuration;
+            case 1: return combo1StaggerDuration;
+            case 2: return combo2StaggerDuration;
+            default: return combo3StaggerDuration;
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // 공격 중 이동 감속
+    // ─────────────────────────────────────────────
+
+    /// <summary>
+    /// 공격 스윙 시 즉시 호출. PlayerController2D의 AttackSpeedMultiplier를
+    /// 지정 배율로 낮춘 뒤 지속 시간 후 1로 복구.
+    /// 연속 공격 시 이전 코루틴을 취소하고 새 배율로 덮어씀.
+    /// </summary>
+    private void ApplyAttackSlow(int comboStep)
+    {
+        if (_controller == null) return;
+
+        float multiplier = GetSlowMultiplier(comboStep);
+        float duration   = GetSlowDuration(comboStep);
+
+        if (_attackSlowRoutine != null)
+        {
+            StopCoroutine(_attackSlowRoutine);
+            // 이전 감속 코루틴이 복구 전에 중단됐으므로 직접 새 값 적용
+        }
+
+        _attackSlowRoutine = StartCoroutine(AttackSlowRoutine(multiplier, duration));
+    }
+
+    private IEnumerator AttackSlowRoutine(float multiplier, float duration)
+    {
+        _controller.AttackSpeedMultiplier = multiplier;
+        // WaitForSecondsRealtime: 히트스탑(timeScale=0) 중에도 감속 타이머 진행
+        yield return new WaitForSecondsRealtime(duration);
+        _controller.AttackSpeedMultiplier = 1f;
+        _attackSlowRoutine = null;
+    }
+
+    private float GetSlowMultiplier(int comboStep)
+    {
+        switch (comboStep)
+        {
+            case 0: return heavySlowMultiplier;
+            case 1: return combo1SlowMultiplier;
+            case 2: return combo2SlowMultiplier;
+            default: return combo3SlowMultiplier;
+        }
+    }
+
+    private float GetSlowDuration(int comboStep)
+    {
+        switch (comboStep)
+        {
+            case 0: return heavySlowDuration;
+            case 1: return combo1SlowDuration;
+            case 2: return combo2SlowDuration;
+            default: return combo3SlowDuration;
+        }
     }
 
     private void OnDrawGizmosSelected()

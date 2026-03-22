@@ -35,6 +35,10 @@ public class PlayerController2D : MonoBehaviour
     // true인 동안 FixedUpdate의 일반 이동이 중단됨 (백스텝 등 외부 제어용)
     public bool IsVelocityLocked { get; set; }
 
+    // 0~1 범위. 공격 중 감속 배율. 1 = 평속, 0 = 완전 정지.
+    // PlayerCombat2D가 공격 시작 시 설정하고, 지속 시간 후 1로 복구.
+    public float AttackSpeedMultiplier { get; set; } = 1f;
+
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
@@ -83,7 +87,7 @@ public class PlayerController2D : MonoBehaviour
         if (IsVelocityLocked) return;
 
         float speed = _isSprinting ? walkSpeed * runSpeedMultiplier : walkSpeed;
-        _rb.linearVelocity = _moveInput * speed;
+        _rb.linearVelocity = _moveInput * speed * AttackSpeedMultiplier;
     }
 
     private void OnMovePerformed(InputAction.CallbackContext context)

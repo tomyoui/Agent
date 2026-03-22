@@ -114,12 +114,10 @@ public class DoomProjectile2D : MonoBehaviour
         IDamageable damageable = target.GetComponentInParent<IDamageable>();
         if (damageable == null) return;
 
-        // 데미지 적용
+        // 데미지 적용 — ProjectileAttribute를 CombatAttribute로 변환해 전달.
+        // attribute 필드가 실제 TakeDamage 흐름에 참여함으로써 CS0414 경고 해소.
         _hasHit = true;
-        damageable.TakeDamage(damage);
-
-        // TODO: 속성별 이펙트 재생
-        // 예: if (attribute == ProjectileAttribute.Doom) DoomEffectPool.Spawn(transform.position);
+        damageable.TakeDamage(damage, ToCombatAttribute(attribute));
 
         Destroy(gameObject);
     }
@@ -127,6 +125,18 @@ public class DoomProjectile2D : MonoBehaviour
     // ─────────────────────────────────────────────
     // 에디터 시각화
     // ─────────────────────────────────────────────
+    // ProjectileAttribute → CombatAttribute 변환.
+    // DoomProjectile2D 고유 ProjectileAttribute를 공용 CombatAttribute로 맵핑.
+    // 새 속성 추가 시 이 메서드에 case만 추가하면 됨.
+    private static CombatAttribute ToCombatAttribute(ProjectileAttribute pa)
+    {
+        switch (pa)
+        {
+            case ProjectileAttribute.Doom: return CombatAttribute.Doom;
+            default:                       return CombatAttribute.Justice;
+        }
+    }
+
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = new Color(0.6f, 0f, 1f); // 보라색 = 파멸 속성

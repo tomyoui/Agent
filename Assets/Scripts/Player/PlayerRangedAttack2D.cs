@@ -104,6 +104,27 @@ public class PlayerRangedAttack2D : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float fireSfxVolume = 0.9f;
 
     // ─────────────────────────────────────────────
+    // Inspector — 적중 피드백
+    // ─────────────────────────────────────────────
+    [Header("Hit Feedback")]
+    [Tooltip("총 적중 시 히트스탑 지속 시간 (초). 근접보다 짧게 유지 권장.")]
+    [SerializeField] private float gunHitStopDuration = 0.02f;
+
+    // ─────────────────────────────────────────────
+    // Inspector — VFX
+    // ─────────────────────────────────────────────
+    [Header("VFX")]
+    [Tooltip("총구 플래시 프리팹. 할당 시 발사마다 Instantiate 후 자동 제거됨.")]
+    [SerializeField] private GameObject muzzleFlashPrefab;
+    [Tooltip("적 피격 이펙트 프리팹. 할당 시 피격 위치에 Instantiate 후 자동 제거됨.")]
+    [SerializeField] private GameObject hitEffectPrefab;
+    [Tooltip("탄환 궤적 LineRenderer. 총구~피격점 사이를 짧게 표시.\n" +
+             "미할당 시 트레이서 없이 동작.")]
+    [SerializeField] private LineRenderer tracerRenderer;
+    [Tooltip("트레이서 표시 지속 시간 (초).")]
+    [SerializeField] private float tracerDuration = 0.05f;
+
+    // ─────────────────────────────────────────────
     // Inspector — 백스텝 (유틸 이동)
     // ─────────────────────────────────────────────
     [Header("Backstep — Utility Move")]
@@ -134,8 +155,9 @@ public class PlayerRangedAttack2D : MonoBehaviour
 
     // 백스텝이 PlayerController2D.FixedUpdate와 충돌하지 않도록 참조 보관
     private Rigidbody2D _rb;
-    private PlayerController2D _controller; // null-safe: 없어도 동작
-    private PlayerCombat2D _playerCombat;   // 총 피격음 호출용, null-safe
+    private PlayerController2D _controller;  // null-safe: 없어도 동작
+    private PlayerCombat2D _playerCombat;    // 총 피격음/히트스탑 호출용, null-safe
+    private Coroutine _hideTracerRoutine;
 
     // ─────────────────────────────────────────────
     // Unity 생명주기
@@ -146,6 +168,11 @@ public class PlayerRangedAttack2D : MonoBehaviour
         _rb = GetComponent<Rigidbody2D>();
         _controller = GetComponent<PlayerController2D>(); // 없으면 null (경고 없이 처리)
         _playerCombat = GetComponent<PlayerCombat2D>();   // 없으면 null (경고 없이 처리)
+
+        // [수정] 기존에는 _playerCombat이 null이어도 조용히 실패했음.
+        // 인스펙터 구성 실수를 빠르게 발견할 수 있도록 Awake에서 경고 출력.
+        if (_playerCombat == null)
+            Debug.LogWarning("[DoomGun] PlayerCombat2D가 같은 GameObject에 없습니다. 총 피격음과 히트스탑이 동작하지 않습니다.", this);
 
         if (_rb == null)
             Debug.LogWarning("[DoomGun] Rigidbody2D가 없습니다. 백스텝이 동작하지 않습니다.", this);
@@ -339,6 +366,11 @@ public class PlayerRangedAttack2D : MonoBehaviour
         // Scene 뷰 디버그 라인 (마젠타 = 파멸 속성)
         Debug.DrawRay(origin, aimDir * range, Color.magenta, 0.15f);
 
+        // [추가] 트레이서: 히트 여부와 관계없이 Game 뷰에서 궤적 표시
+        // 적 명중 시 hit.point까지, 빗나감 시 사거리 끝까지 표시
+        Vector2 tracerEnd = hit ? hit.point : (origin + aimDir * range);
+        ShowTracer(origin, tracerEnd);
+
         if (!hit)
         {
             Debug.Log($"[DoomGun] [{shotIndex + 1}/{burstCount}] 빗나감", this);
@@ -360,8 +392,13 @@ public class PlayerRangedAttack2D : MonoBehaviour
             return;
         }
 
-        damageable.TakeDamage(damage);
-        _playerCombat?.PlayHitSfx(false); // 총 피격음
+        damageable.TakeDamage(damage, attribute); // attribute = CombatAttribute.Doom (Inspector 기본값)
+        if (_playerCombat != null) _playerCombat.PlayHitSfx(false); // 총 피격음
+
+        // [추가] 총 적중 피드백: 짧은 히트스탑
+        // _playerCombat을 통해 히트스탑을 요청하여 근접/원거리 히트스탑이 충돌하지 않도록 단일 창구 유지
+        if (_playerCombat != null) _playerCombat.TriggerHitStop(gunHitStopDuration);
+
         Debug.Log($"[DoomGun] [{attribute}] [{shotIndex + 1}] 피격: {hit.collider.gameObject.name} / 데미지: {damage}", this);
 
         // [이펙트 연결 지점] 파멸 속성 피격 이펙트
@@ -394,12 +431,6 @@ public class PlayerRangedAttack2D : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // 이펙트 연결 지점 (현재 빈 스텁)
-    // VFX/SFX 추가 시 여기에 코드 채울 것
-    // ─────────────────────────────────────────────
-#pragma warning disable IDE0060
-
-    // ─────────────────────────────────────────────
     // 발사 사운드
     // ─────────────────────────────────────────────
     private void PlayFireSfx()
@@ -412,16 +443,57 @@ public class PlayerRangedAttack2D : MonoBehaviour
         audioSource.PlayOneShot(fireSfx, fireSfxVolume);
     }
 
-    /// <summary>[파멸 총] 발사 시 총구 이펙트. 예: Muzzle Flash 파티클</summary>
-    private void OnMuzzleFlash(Vector2 origin, Vector2 direction)
+    // ─────────────────────────────────────────────
+    // 트레이서 — Game 뷰에서 보이는 탄환 궤적
+    // ─────────────────────────────────────────────
+    private void ShowTracer(Vector2 start, Vector2 end)
     {
-        // TODO: muzzleFlashVFX.Play()
+        if (tracerRenderer == null) return;
+
+        tracerRenderer.positionCount = 2;
+        tracerRenderer.SetPosition(0, start);
+        tracerRenderer.SetPosition(1, end);
+        tracerRenderer.enabled = true;
+
+        // 이전 은닉 코루틴 취소 후 재시작 — 버스트 연사 시 충돌 방지
+        if (_hideTracerRoutine != null) StopCoroutine(_hideTracerRoutine);
+        _hideTracerRoutine = StartCoroutine(HideTracerAfterDelay());
     }
 
-    /// <summary>[파멸 총] 적 피격 시 히트 이펙트. 예: 보라색 파티클</summary>
+    private IEnumerator HideTracerAfterDelay()
+    {
+        // WaitForSecondsRealtime: 히트스탑(timeScale=0) 중에도 트레이서가 제때 사라짐
+        yield return new WaitForSecondsRealtime(tracerDuration);
+        if (tracerRenderer != null) tracerRenderer.enabled = false;
+        _hideTracerRoutine = null;
+    }
+
+    // ─────────────────────────────────────────────
+    // 이펙트 연결 지점
+    // VFX 프리팹 할당 시 자동 동작. 미할당 시 스킵.
+    // ─────────────────────────────────────────────
+#pragma warning disable IDE0060
+
+    /// <summary>[파멸 총] 발사 시 총구 이펙트. muzzleFlashPrefab 할당 시 Instantiate.</summary>
+    private void OnMuzzleFlash(Vector2 origin, Vector2 direction)
+    {
+        if (muzzleFlashPrefab == null) return;
+
+        // 발사 방향으로 프리팹 회전 정렬
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        GameObject fx = Instantiate(muzzleFlashPrefab, origin, Quaternion.Euler(0f, 0f, angle));
+        Destroy(fx, 0.12f);
+    }
+
+    /// <summary>[파멸 총] 적 피격 시 히트 이펙트. hitEffectPrefab 할당 시 Instantiate.</summary>
     private void OnDoomHitEffect(Vector2 hitPoint, Vector2 hitNormal)
     {
-        // TODO: Instantiate(doomHitEffectPrefab, hitPoint, ...)
+        if (hitEffectPrefab == null) return;
+
+        // 피격 법선 방향으로 프리팹 회전 정렬
+        float angle = Mathf.Atan2(hitNormal.y, hitNormal.x) * Mathf.Rad2Deg;
+        GameObject fx = Instantiate(hitEffectPrefab, hitPoint, Quaternion.Euler(0f, 0f, angle));
+        Destroy(fx, 0.3f);
     }
 
     /// <summary>[백스텝] 이동 시작 시 이펙트. 예: 잔상, 부스터 VFX</summary>

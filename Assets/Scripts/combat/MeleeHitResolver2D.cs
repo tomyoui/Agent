@@ -11,7 +11,8 @@ public static class MeleeHitResolver2D
         int damage,
         LayerMask targetLayer,
         Object debugContext = null,
-        string debugLabel = "Melee")
+        string debugLabel = "Melee",
+        CombatAttribute attribute = CombatAttribute.Justice)
     {
         float safeRange = Mathf.Max(0f, range);
         Collider2D[] hits = Physics2D.OverlapCircleAll(origin, safeRange, targetLayer);
@@ -27,7 +28,7 @@ public static class MeleeHitResolver2D
                 continue;
             }
 
-            damageable.TakeDamage(damage);
+            damageable.TakeDamage(damage, attribute);
             damagedCount++;
         }
 
@@ -49,7 +50,8 @@ public static class MeleeHitResolver2D
         int damage,
         LayerMask targetLayer,
         Object debugContext = null,
-        string debugLabel = "MeleeCone")
+        string debugLabel = "MeleeCone",
+        CombatAttribute attribute = CombatAttribute.Justice)
     {
         Vector2 safeForward = forwardDirection.sqrMagnitude > 0.0001f
             ? forwardDirection.normalized
@@ -92,7 +94,7 @@ public static class MeleeHitResolver2D
                 continue;
             }
 
-            damageable.TakeDamage(damage);
+            damageable.TakeDamage(damage, attribute);
             damagedCount++;
         }
 

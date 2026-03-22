@@ -30,14 +30,31 @@ public class EnemyMelee2D : MonoBehaviour
     private float _attackWindupEndTime;
     private float _recoveryEndTime;
 
+    // 넉백 중 AI 이동 차단을 위해 참조 보관 (null-safe: 없어도 동작)
+    private KnockbackReceiver2D _knockbackReceiver;
+
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
+        _knockbackReceiver = GetComponent<KnockbackReceiver2D>();
         ResolveTarget();
     }
 
     private void FixedUpdate()
     {
+        // 넉백 중: velocity를 절대 덮어쓰지 않고 그냥 return.
+        // AddForce(Impulse)로 부여된 velocity를 물리 엔진이 직접 소멸시키도록 둬야 함.
+        // 이 블록에 linearVelocity = zero를 넣으면 매 FixedUpdate마다 넉백이 즉시 취소됨.
+        if (_knockbackReceiver != null && _knockbackReceiver.IsKnockedBack)
+            return;
+
+        // 경직 중(넉백은 끝남): 제자리에 멈춰 있어야 하므로 velocity = zero.
+        if (_knockbackReceiver != null && _knockbackReceiver.IsStaggered)
+        {
+            _rb.linearVelocity = Vector2.zero;
+            return;
+        }
+
         if (!ResolveTarget())
         {
             _rb.linearVelocity = Vector2.zero;
@@ -99,7 +116,8 @@ public class EnemyMelee2D : MonoBehaviour
             attackDamage,
             targetMask,
             this,
-            "EnemyMelee2D"
+            "EnemyMelee2D",
+            CombatAttribute.Justice   // 현재 적 근접 공격 = 정의 속성 (임시). 적별 속성 추가 시 Inspector 필드로 분리
         );
     }
 
