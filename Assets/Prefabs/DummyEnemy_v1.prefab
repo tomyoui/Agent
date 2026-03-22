@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 5423957698089035797}
   - component: {fileID: 3493676708667136215}
   - component: {fileID: 3003881260842679351}
+  - component: {fileID: 5616922684857186309}
   m_Layer: 3
   m_Name: DummyEnemy_v1
   m_TagString: Untagged
@@ -181,10 +182,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
-  maxHP: 30
+  maxHP: 500
   currentHP: 0
   hitFlashDuration: 0.08
   hitFlashColor: {r: 1, g: 0, b: 0, a: 1}
+  damageNumberPrefab: {fileID: 5673047605395126464, guid: e6b8d420ac676463ea155ca35fb2e929, type: 3}
+  deathVfxPrefab: {fileID: 0}
+  deathVfxLifetime: 0.5
+  deathAudioSource: {fileID: 0}
+  deathSfx: {fileID: 0}
+  deathSfxVolume: 1
 --- !u!114 &3003881260842679351
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -204,6 +211,19 @@ MonoBehaviour:
   attackWindup: 0.2
   attackCooldown: 1
   attackDamage: 5
+--- !u!114 &5616922684857186309
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 121592892801364407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52ddfe5a0f830461790a15ee31b66169, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KnockbackReceiver2D
+  targetRigidbody: {fileID: 5423957698089035797}
 --- !u!1 &4293450608829935249
 GameObject:
   m_ObjectHideFlags: 0

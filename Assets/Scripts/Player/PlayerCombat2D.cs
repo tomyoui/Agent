@@ -570,7 +570,14 @@ public class PlayerCombat2D : MonoBehaviour
             }
 
             KnockbackReceiver2D knockbackReceiver = hit.GetComponentInParent<KnockbackReceiver2D>();
-            if (knockbackReceiver == null || !knockedTargets.Add(knockbackReceiver))
+            if (knockbackReceiver == null)
+            {
+                // 넉백이 적용되지 않음 — 이 경고가 보이면 해당 오브젝트에
+                // KnockbackReceiver2D 컴포넌트를 추가하세요.
+                Debug.LogWarning($"[PlayerCombat2D] {hit.gameObject.name} 에 KnockbackReceiver2D가 없어 넉백이 적용되지 않습니다.", hit.gameObject);
+                continue;
+            }
+            if (!knockedTargets.Add(knockbackReceiver))
             {
                 continue;
             }

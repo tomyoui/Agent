@@ -16,6 +16,10 @@ public class Health : MonoBehaviour, IDamageable
     [Tooltip("피격 플래시 색상")]
     [SerializeField] private Color hitFlashColor = Color.red;
 
+    [Header("Damage Number")]
+    [Tooltip("데미지 숫자 프리팹. 미할당 시 경고 로그만 출력하고 다른 피드백은 정상 동작.")]
+    [SerializeField] private DamageNumber damageNumberPrefab;
+
     [Header("Death Feedback")]
     [Tooltip("사망 시 스폰할 VFX 프리팹. 미할당 시 스킵.")]
     [SerializeField] private GameObject deathVfxPrefab;
@@ -95,6 +99,9 @@ public class Health : MonoBehaviour, IDamageable
                 Debug.Log($"[Health] {gameObject.name} [{attribute}] {damage} 데미지. HP: {currentHP}/{maxHP}", this);
                 break;
         }
+
+        // 데미지 숫자 표시: 피격 대상 머리 위 월드 위치에 스폰
+        DamageNumber.Spawn(damageNumberPrefab, transform.position, damage);
 
         TriggerHitFlash();
 
