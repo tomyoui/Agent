@@ -281,7 +281,7 @@ MonoBehaviour:
   deathVfxPrefab: {fileID: 0}
   deathVfxLifetime: 0.5
   deathAudioSource: {fileID: 0}
-  deathSfx: {fileID: 0}
+  deathSfx: {fileID: 8300000, guid: c4b6c0da58d1f954ba70a007666b7950, type: 3}
   deathSfxVolume: 1
 --- !u!114 &8839960510474976271
 MonoBehaviour:

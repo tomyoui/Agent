@@ -21,7 +21,11 @@ public class Health : MonoBehaviour, IDamageable
     [SerializeField] private DamageNumber damageNumberPrefab;
 
     [Header("Death Feedback")]
-    [Tooltip("사망 시 스폰할 VFX 프리팹. 미할당 시 스킵.")]
+    [Tooltip("사망 연출 총 지속 시간 (초). 이 시간 동안 팝 → 페이드아웃 후 오브젝트 제거.")]
+    [SerializeField] private float deathDuration = 0.3f;
+    [Tooltip("사망 시 순간 팝 스케일 배수. 1.3이면 30% 커졌다가 원래 크기로 줄어들며 페이드아웃.")]
+    [SerializeField, Range(1f, 2f)] private float deathScaleMultiplier = 1.3f;
+    [Tooltip("사망 시 스폰할 VFX 프리팹. 미할당 시 조용히 스킵.")]
     [SerializeField] private GameObject deathVfxPrefab;
     [Tooltip("사망 VFX 자동 제거까지의 시간 (초)")]
     [SerializeField] private float deathVfxLifetime = 0.5f;
@@ -42,25 +46,25 @@ public class Health : MonoBehaviour, IDamageable
 
     private SpriteRenderer _spriteRenderer;
     private Color _originalColor = Color.white;
+    private Vector3 _originalScale;
     private Coroutine _hitFlashRoutine;
+
+    // 중복 사망 처리 방지 플래그
+    private bool _isDead;
 
     private void Awake()
     {
-        if (maxHP < 1)
-        {
-            maxHP = 1;
-        }
-
-        if (currentHP <= 0 || currentHP > maxHP)
-        {
-            currentHP = maxHP;
-        }
+        if (maxHP < 1) maxHP = 1;
+        if (currentHP <= 0 || currentHP > maxHP) currentHP = maxHP;
 
         _spriteRenderer = GetComponent<SpriteRenderer>();
         if (_spriteRenderer != null)
         {
             _originalColor = _spriteRenderer.color;
         }
+
+        // 사망 팝 연출을 위해 원래 스케일 캐싱
+        _originalScale = transform.localScale;
 
         if (deathAudioSource == null)
         {
@@ -77,6 +81,9 @@ public class Health : MonoBehaviour, IDamageable
 
     public void TakeDamage(int damage, CombatAttribute attribute = CombatAttribute.Justice)
     {
+        // 이미 사망 처리 중이면 추가 데미지 무시
+        if (_isDead) return;
+
         if (damage <= 0)
         {
             Debug.Log($"[Health] {gameObject.name} 유효하지 않은 데미지 무시: {damage}", this);
@@ -113,42 +120,75 @@ public class Health : MonoBehaviour, IDamageable
 
     private void Die()
     {
-        // 사망 VFX: 현재 위치에 스폰 후 지연 제거.
-        // Destroy(gameObject) 이전에 호출해야 위치 정보가 유효함.
+        // 중복 호출 방지 — TakeDamage에서 체크하지만 외부 호출 대비 이중 방어
+        if (_isDead) return;
+        _isDead = true;
+
+        // 진행 중인 피격 플래시 즉시 중단 — 사망 연출 중 색상 충돌 방지
+        if (_hitFlashRoutine != null)
+        {
+            StopCoroutine(_hitFlashRoutine);
+            _hitFlashRoutine = null;
+            if (_spriteRenderer != null) _spriteRenderer.color = _originalColor;
+        }
+
+        StartCoroutine(DeathRoutine());
+    }
+
+    private IEnumerator DeathRoutine()
+    {
+        // ── 1. VFX 스폰 ─────────────────────────────────────────────────────
+        // 위치 정보가 유효한 시점에 미리 생성. 미할당 시 조용히 스킵.
         if (deathVfxPrefab != null)
         {
             GameObject vfx = Instantiate(deathVfxPrefab, transform.position, Quaternion.identity);
             Destroy(vfx, deathVfxLifetime);
         }
-        else
-        {
-            Debug.LogWarning($"[Health] {gameObject.name} deathVfxPrefab이 없습니다. 사망 이펙트를 인스펙터에서 연결하세요.", this);
-        }
 
-        // 사망 사운드: PlayClipAtPoint로 월드 공간에 임시 AudioSource를 생성해 재생.
-        // Destroy(gameObject) 이후에도 클립이 끊기지 않고 끝까지 재생됨.
-        // deathSfx 미설정 시 프로토타입 fallback 클립으로 대체 — 항상 뭔가 들림.
+        // ── 2. SFX 재생 ──────────────────────────────────────────────────────
+        // PlayClipAtPoint: 오브젝트 파괴 후에도 월드 공간의 임시 AudioSource에서 끝까지 재생됨.
         AudioClip clipToPlay = deathSfx != null ? deathSfx : _fallbackDeathSfx;
         if (clipToPlay != null)
         {
             AudioSource.PlayClipAtPoint(clipToPlay, transform.position, deathSfxVolume);
-
-            if (deathSfx == null)
-            {
-                Debug.Log($"[Health] {gameObject.name} deathSfx 미설정 — 프로토타입 fallback 사운드 재생 중. " +
-                          "인스펙터의 deathSfx 슬롯에 클립을 드래그해 교체하세요.", this);
-            }
         }
 
-        Destroy(gameObject);
+        // ── 3. 스케일 팝 + 알파 페이드아웃 ──────────────────────────────────
+        // 순간 팝: 스케일을 deathScaleMultiplier 배로 즉시 키움
+        transform.localScale = _originalScale * deathScaleMultiplier;
+
+        float elapsed = 0f;
+        while (elapsed < deathDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / deathDuration);
+
+            // 알파: 1 → 0 선형 감소 (빠른 소멸감)
+            if (_spriteRenderer != null)
+            {
+                Color c = _originalColor;
+                c.a = 1f - t;
+                _spriteRenderer.color = c;
+            }
+
+            // 스케일: 팝 크기 → 원래 크기로 선형 수렴 (커졌다가 돌아오며 사라지는 느낌)
+            transform.localScale = Vector3.Lerp(
+                _originalScale * deathScaleMultiplier,
+                _originalScale,
+                t
+            );
+
+            yield return null;
+        }
+
+        // ── 4. 오브젝트 비활성화 + 파티 매니저에 사망 알림 ──────────────────
+        PartyManager2D.Instance?.OnMemberDied(gameObject);
+        gameObject.SetActive(false);
     }
 
     private void TriggerHitFlash()
     {
-        if (_spriteRenderer == null)
-        {
-            return;
-        }
+        if (_spriteRenderer == null) return;
 
         if (_hitFlashRoutine != null)
         {
@@ -217,11 +257,11 @@ public class Health : MonoBehaviour, IDamageable
         }
 
         AudioClip clip = AudioClip.Create(
-            name:       "DeathSfx_Fallback",
+            name:          "DeathSfx_Fallback",
             lengthSamples: sampleCount,
-            channels:   1,
-            frequency:  sampleRate,
-            stream:     false
+            channels:      1,
+            frequency:     sampleRate,
+            stream:        false
         );
         clip.SetData(samples, offsetSamples: 0);
         return clip;

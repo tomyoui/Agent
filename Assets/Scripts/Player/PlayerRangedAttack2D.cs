@@ -35,15 +35,22 @@ public enum FireMode { Single, Burst, Auto }
 ///   OnBackstepStart()   — 백스텝 시작 이펙트 (SFX, VFX 등)
 ///   OnBackstepEnd()     — 백스텝 종료 이펙트
 /// </summary>
-public class PlayerRangedAttack2D : MonoBehaviour
+public class PlayerRangedAttack2D : BasePlayableCombat2D
 {
     // ─────────────────────────────────────────────
-    // Inspector — 속성
+    // Inspector — E 스킬 공격 정의
     // ─────────────────────────────────────────────
-    [Header("Attribute")]
-    [Tooltip("이 공격의 전투 속성. 기본: 파멸(Doom).\n" +
-             "차후 쾌락/조화/생명/탐욕 속성 추가 시 CombatAttribute.cs에서 확장.")]
-    [SerializeField] private CombatAttribute attribute = CombatAttribute.Doom;
+    [Header("Attack Definition — E 스킬 계수")]
+    [Tooltip("E 스킬 공격 계수·분류·속성.\n" +
+             "coefficient × FinalAttack = 기본 피해.\n" +
+             "category = Skill → SkillDamageBonus 자동 적용.\n" +
+             "attribute = Doom → DoomDamageBonus 자동 적용.")]
+    [SerializeField] private AttackDefinition eSkillAttackDef = new AttackDefinition
+    {
+        coefficient = 1.1f,
+        category    = AttackCategory.Skill,   // 스킬 보너스 적용
+        attribute   = CombatAttribute.Doom    // 파멸 속성 보너스 적용
+    };
 
     // ─────────────────────────────────────────────
     // Inspector — 입력
@@ -73,9 +80,6 @@ public class PlayerRangedAttack2D : MonoBehaviour
     // Inspector — 히트스캔
     // ─────────────────────────────────────────────
     [Header("Hitscan")]
-    [Tooltip("탄당 데미지")]
-    [SerializeField] private int damage = 20;
-
     [Tooltip("히트스캔 최대 사거리 (유닛)")]
     [SerializeField] private float range = 20f;
 
@@ -162,8 +166,9 @@ public class PlayerRangedAttack2D : MonoBehaviour
     // ─────────────────────────────────────────────
     // Unity 생명주기
     // ─────────────────────────────────────────────
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake(); // CharacterStats 탐색 (_stats 초기화)
         _mainCamera = Camera.main;
         _rb = GetComponent<Rigidbody2D>();
         _controller = GetComponent<PlayerController2D>(); // 없으면 null (경고 없이 처리)
@@ -186,19 +191,33 @@ public class PlayerRangedAttack2D : MonoBehaviour
 
     private void OnEnable()
     {
-        fireAction.performed += OnFirePerformed;
-        fireAction.Enable();
+        Debug.Log($"[PlayerRangedAttack2D] OnEnable ← {gameObject.name}", this);
+        // fireAction은 PartyManager2D가 E키를 라우팅해 TryFire()를 직접 호출함.
+        // 자체 Enable/구독 없이 외부 호출 전담 구조로 변경.
     }
 
     private void OnDisable()
     {
-        fireAction.performed -= OnFirePerformed;
-        fireAction.Disable();
+        Debug.Log($"[PlayerRangedAttack2D] OnDisable ← {gameObject.name}", this);
         _isBurstActive = false;
 
         // 비활성화 시 잠금 해제 — 안전장치
         if (_controller != null)
             _controller.IsVelocityLocked = false;
+    }
+
+    /// <summary>
+    /// PartyManager2D에서 E키 입력 시 직접 호출하는 발사 진입점.
+    /// Auto 모드는 홀드 여부를 외부에서 판단할 수 없으므로 Single 발사로 처리.
+    /// </summary>
+    public void TryFire()
+    {
+        switch (fireMode)
+        {
+            case FireMode.Single: TryFireSingle();  break;
+            case FireMode.Burst:  TryStartBurst();  break;
+            case FireMode.Auto:   TryFireSingle();  break;
+        }
     }
 
     private void Update()
@@ -392,14 +411,21 @@ public class PlayerRangedAttack2D : MonoBehaviour
             return;
         }
 
-        damageable.TakeDamage(damage, attribute); // attribute = CombatAttribute.Doom (Inspector 기본값)
+        // 발사 시점에 데미지 계산 — 계산은 발사자, 적용은 TakeDamage
+        // CharacterStats 있으면 정식 계산, 없으면 flatAttack=20 폴백
+        int dmg = CalculateSkillDamage(eSkillAttackDef, fallbackFlatAttack: 20);
+        damageable.TakeDamage(dmg, eSkillAttackDef.attribute);
+
+        // E 스킬 적중 시 궁극기 게이지 획득
+        AddUltimateGauge(skillHitGain);
+
         if (_playerCombat != null) _playerCombat.PlayHitSfx(false); // 총 피격음
 
         // [추가] 총 적중 피드백: 짧은 히트스탑
         // _playerCombat을 통해 히트스탑을 요청하여 근접/원거리 히트스탑이 충돌하지 않도록 단일 창구 유지
         if (_playerCombat != null) _playerCombat.TriggerHitStop(gunHitStopDuration);
 
-        Debug.Log($"[DoomGun] [{attribute}] [{shotIndex + 1}] 피격: {hit.collider.gameObject.name} / 데미지: {damage}", this);
+        Debug.Log($"[DoomGun] [{eSkillAttackDef.attribute}] [{shotIndex + 1}] 피격: {hit.collider.gameObject.name} / 데미지: {dmg}", this);
 
         // [이펙트 연결 지점] 파멸 속성 피격 이펙트
         OnDoomHitEffect(hit.point, hit.normal);

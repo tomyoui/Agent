@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp:*)",
+      "Bash(find /c/Users/soulc/Agent -name TODO* -o -name TASK* -o -name *.todo)"
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-using UnityEngine;
+ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody2D))]
@@ -44,27 +44,45 @@ public class PlayerController2D : MonoBehaviour
         _rb = GetComponent<Rigidbody2D>();
         _playerInput = GetComponent<PlayerInput>();
 
-        _moveAction = _playerInput.actions.FindAction("Move", true);
-        _sprintAction = _playerInput.actions.FindAction("Sprint", true);
-        _dashAction = _playerInput.actions.FindAction("Dash", true);
+        // throwIfNotFound=false 로 바꾸고 null 검사 — 액션 이름 오타 시 즉시 발견
+        _moveAction   = _playerInput.actions.FindAction("Move",   throwIfNotFound: false);
+        _sprintAction = _playerInput.actions.FindAction("Sprint", throwIfNotFound: false);
+        _dashAction   = _playerInput.actions.FindAction("Dash",   throwIfNotFound: false);
+
+        if (_moveAction   == null) Debug.LogError("[PlayerController2D] InputAction 'Move' 를 찾지 못했습니다. .inputactions 파일에 'Move' 가 있는지 확인하세요.", this);
+        if (_sprintAction == null) Debug.LogError("[PlayerController2D] InputAction 'Sprint' 를 찾지 못했습니다.", this);
+        if (_dashAction   == null) Debug.LogError("[PlayerController2D] InputAction 'Dash' 를 찾지 못했습니다.", this);
     }
 
     private void OnEnable()
     {
-        _moveAction.performed += OnMovePerformed;
-        _moveAction.canceled += OnMoveCanceled;
-        _sprintAction.performed += OnSprintPerformed;
-        _sprintAction.canceled += OnSprintCanceled;
-        _dashAction.performed += OnDashPerformed;
+        Debug.Log($"[PlayerController2D] OnEnable ← {gameObject.name}", this);
+
+        // PlayerInput은 키보드를 얻지 못한 캐릭터의 ActionMap을 DeactivateInput()으로 끔.
+        // 명시적으로 개별 Action을 Enable해서 PlayerInput의 pairing 상태를 우회한다.
+        _moveAction?.Enable();
+        _sprintAction?.Enable();
+        _dashAction?.Enable();
+
+        if (_moveAction != null)   { _moveAction.performed   += OnMovePerformed;   _moveAction.canceled   += OnMoveCanceled; }
+        if (_sprintAction != null) { _sprintAction.performed += OnSprintPerformed;  _sprintAction.canceled += OnSprintCanceled; }
+        if (_dashAction != null)     _dashAction.performed   += OnDashPerformed;
+
+        Debug.Log($"[PlayerController2D] OnEnable 완료 ← {gameObject.name}  moveAction.enabled={_moveAction?.enabled}  bindings={_moveAction?.bindings.Count}", this);
     }
 
     private void OnDisable()
     {
-        _moveAction.performed -= OnMovePerformed;
-        _moveAction.canceled -= OnMoveCanceled;
-        _sprintAction.performed -= OnSprintPerformed;
-        _sprintAction.canceled -= OnSprintCanceled;
-        _dashAction.performed -= OnDashPerformed;
+        Debug.Log($"[PlayerController2D] OnDisable ← {gameObject.name}", this);
+
+        if (_moveAction != null)   { _moveAction.performed   -= OnMovePerformed;   _moveAction.canceled   -= OnMoveCanceled; }
+        if (_sprintAction != null) { _sprintAction.performed -= OnSprintPerformed;  _sprintAction.canceled -= OnSprintCanceled; }
+        if (_dashAction != null)     _dashAction.performed   -= OnDashPerformed;
+
+        // standby 캐릭터의 action은 꺼서 입력 차단
+        _moveAction?.Disable();
+        _sprintAction?.Disable();
+        _dashAction?.Disable();
     }
 
     private void FixedUpdate()
@@ -93,6 +111,7 @@ public class PlayerController2D : MonoBehaviour
     private void OnMovePerformed(InputAction.CallbackContext context)
     {
         _moveInput = context.ReadValue<Vector2>();
+        Debug.Log($"[PlayerController2D] OnMovePerformed ← {gameObject.name}  input={_moveInput}", this);
 
         if (_moveInput.sqrMagnitude > 0.0001f)
         {

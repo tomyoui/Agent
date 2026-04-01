@@ -6,7 +6,7 @@ using UnityEngine.Events;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(PlayerInput))]
-public class PlayerCombat2D : MonoBehaviour
+public class PlayerCombat2D : BasePlayableCombat2D
 {
     [Serializable]
     public class ComboEvent : UnityEvent<int> { }
@@ -18,28 +18,54 @@ public class PlayerCombat2D : MonoBehaviour
     [SerializeField] private float heavyAttackRange = 1.4f;
     [Tooltip("공격 대상 레이어 마스크")]
     [SerializeField] private LayerMask targetLayer;
-    [Tooltip("강공격 데미지")]
-    [SerializeField] private int heavyDamage = 25;
+
+    [Header("Attack Definitions — 공격 계수")]
+    [Tooltip("콤보 1타 계수·분류·속성. coefficient × FinalAttack = 기본 피해.")]
+    [SerializeField] private AttackDefinition combo1Attack = new AttackDefinition { coefficient = 0.90f };
+    [Tooltip("콤보 2타 계수·분류·속성")]
+    [SerializeField] private AttackDefinition combo2Attack = new AttackDefinition { coefficient = 1.05f };
+    [Tooltip("콤보 3타 계수·분류·속성")]
+    [SerializeField] private AttackDefinition combo3Attack = new AttackDefinition { coefficient = 1.50f };
+    [Tooltip("강공격 계수·분류·속성")]
+    [SerializeField] private AttackDefinition heavyAttackDef = new AttackDefinition { coefficient = 1.80f };
+
+    [Header("Ultimate — 궁극기")]
+    [Tooltip("궁극기 계수·분류·속성.\n" +
+             "category = Ultimate → UltimateDamageBonus 자동 적용.\n" +
+             "coefficient를 높게 설정해 강력한 한 방으로 연출.")]
+    [SerializeField] private AttackDefinition ultimateAttackDef = new AttackDefinition
+    {
+        coefficient = 4.0f,
+        category    = AttackCategory.Ultimate,
+        attribute   = CombatAttribute.Justice
+    };
+
+    [Tooltip("궁극기 판정 반경 (전방향 원형).")]
+    [SerializeField] private float ultimateRange = 2.5f;
+
+    [Tooltip("궁극기 판정 콘 각도. 360이면 전방향 원형.")]
+    [SerializeField] private float ultimateAngle = 360f;
+
+    [Tooltip("궁극기 입력 키. 기본: Q키.")]
+    [SerializeField] private InputAction ultimateAction = new InputAction(
+        name: "Ultimate",
+        type: InputActionType.Button,
+        binding: "<Keyboard>/q"
+    );
 
     [Header("Combo Step 1")]
-    [Tooltip("콤보 1타 데미지")]
-    [SerializeField] private int combo1Damage = 8;
     [Tooltip("콤보 1타 판정 반경")]
     [SerializeField] private float combo1Range = 0.9f;
     [Tooltip("콤보 1타 콘 각도")]
     [SerializeField] private float combo1Angle = 70f;
 
     [Header("Combo Step 2")]
-    [Tooltip("콤보 2타 데미지")]
-    [SerializeField] private int combo2Damage = 12;
     [Tooltip("콤보 2타 판정 반경")]
     [SerializeField] private float combo2Range = 1.1f;
     [Tooltip("콤보 2타 콘 각도")]
     [SerializeField] private float combo2Angle = 95f;
 
     [Header("Combo Step 3")]
-    [Tooltip("콤보 3타 데미지")]
-    [SerializeField] private int combo3Damage = 18;
     [Tooltip("콤보 3타 판정 반경")]
     [SerializeField] private float combo3Range = 1.3f;
     [Tooltip("콤보 3타 콘 각도")]
@@ -192,20 +218,21 @@ public class PlayerCombat2D : MonoBehaviour
     // 공격 중 이동 감속 호출용 (null-safe: 없어도 동작)
     private PlayerController2D _controller;
 
-    private void Awake()
+    protected override void Awake()
     {
+        base.Awake(); // CharacterStats 탐색 (_stats 초기화)
         _playerInput = GetComponent<PlayerInput>();
         _attackAction = _playerInput.actions.FindAction("Attack", true);
         _mainCamera = Camera.main;
         hitAudioSource = hitAudioSource != null ? hitAudioSource : GetComponent<AudioSource>();
         ResolveAttackPoint();
 
-        // [추가] 카메라 셰이크 컴포넌트 탐색. 없으면 경고만 출력하고 셰이크 없이 동작.
+        // 카메라 셰이크 컴포넌트 탐색. 없으면 경고만 출력하고 셰이크 없이 동작.
         _cameraShake = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
         if (_cameraShake == null)
             Debug.LogWarning("[PlayerCombat2D] CameraFollow2D를 찾을 수 없습니다. 카메라 셰이크가 동작하지 않습니다.", this);
 
-        // [추가] 이동 감속용 PlayerController2D 탐색. null-safe: 없으면 감속 없이 동작.
+        // 이동 감속용 PlayerController2D 탐색. null-safe: 없으면 감속 없이 동작.
         _controller = GetComponent<PlayerController2D>();
 
         if (targetLayer.value == 0)
@@ -221,18 +248,35 @@ public class PlayerCombat2D : MonoBehaviour
 
     private void OnEnable()
     {
-        _attackAction.started += OnAttackStarted;
+        Debug.Log($"[PlayerCombat2D] OnEnable ← {gameObject.name}", this);
+
+        // PlayerInput이 ActionMap을 끈 경우에도 동작하도록 개별 Enable
+        _attackAction.Enable();
+        _attackAction.started  += OnAttackStarted;
         _attackAction.canceled += OnAttackCanceled;
+
+        ultimateAction.performed += OnUltimatePerformed;
+        ultimateAction.Enable();
     }
 
     private void OnDisable()
     {
-        _attackAction.started -= OnAttackStarted;
+        Debug.Log($"[PlayerCombat2D] OnDisable ← {gameObject.name}", this);
+        _attackAction.started  -= OnAttackStarted;
         _attackAction.canceled -= OnAttackCanceled;
+        _attackAction.Disable(); // standby 캐릭터 입력 차단
+
+        ultimateAction.performed -= OnUltimatePerformed;
+        ultimateAction.Disable();
 
         // 감속 도중 컴포넌트가 꺼지면 배율이 낮은 채로 남음 — 즉시 복구
         if (_controller != null)
             _controller.AttackSpeedMultiplier = 1f;
+    }
+
+    private void OnUltimatePerformed(UnityEngine.InputSystem.InputAction.CallbackContext _)
+    {
+        TryTriggerUltimate();
     }
 
     private void Update()
@@ -325,11 +369,11 @@ public class PlayerCombat2D : MonoBehaviour
         _lastComboTime = Time.time;
         _nextComboAttackTime = Time.time + Mathf.Max(0.01f, attackCooldown);
 
-        GetComboStepStats(_currentComboStep, out int damage, out float range, out float angle);
-        // [추가] 공격 스윙 즉시 이동 감속 적용 — 타격 동작에 무게감 부여
+        AttackDefinition attackDef = GetComboAttackDef(_currentComboStep);
+        int damage = CalculateSkillDamage(attackDef, fallbackFlatAttack: 10);
+        GetComboStepGeometry(_currentComboStep, out float range, out float angle);
         ApplyAttackSlow(_currentComboStep);
-        // [수정] 콤보 단계를 전달해 히트스탑/넉백/셰이크를 단계별로 차등 적용
-        PerformAttack(range, damage, angle, $"Combo {_currentComboStep}", comboStep: _currentComboStep);
+        PerformAttack(range, damage, angle, attackDef.attribute, $"Combo {_currentComboStep}", comboStep: _currentComboStep);
         onComboAttack?.Invoke(_currentComboStep);
     }
 
@@ -339,15 +383,16 @@ public class PlayerCombat2D : MonoBehaviour
         _lastComboTime = 0f;
 
         PlayRandomHeavySwingSound();
-        // [추가] 강공격 스윙 즉시 이동 감속 — 콤보보다 더 길고 강하게
+        int heavyDmg = CalculateSkillDamage(heavyAttackDef, fallbackFlatAttack: 14); // 14 × 1.8 ≈ 25
         ApplyAttackSlow(comboStep: 0);
-        // [수정] comboStep: 0 = 강공격 전용 히트스탑/넉백/셰이크 적용
-        PerformAttack(heavyAttackRange, heavyDamage, heavyAttackAngle, "Heavy", comboStep: 0);
+        PerformAttack(heavyAttackRange, heavyDmg, heavyAttackAngle, heavyAttackDef.attribute, "Heavy", comboStep: 0);
         onHeavyAttack?.Invoke();
     }
 
     // comboStep: 0=강공격, 1~3=콤보 단계. 히트스탑/넉백/셰이크 강도 분기에 사용.
-    private void PerformAttack(float range, int damage, float attackAngle, string attackType, int comboStep = 1)
+    // attribute: AttackDefinition에서 전달 — 하드코딩 제거
+    private void PerformAttack(float range, int damage, float attackAngle,
+        CombatAttribute attribute, string attackType, int comboStep = 1)
     {
         if (!ResolveAttackPoint())
         {
@@ -366,7 +411,7 @@ public class PlayerCombat2D : MonoBehaviour
             targetLayer,
             this,
             $"PlayerCombat2D/{attackType}",
-            CombatAttribute.Justice   // 근접 검 공격 = 정의 속성
+            attribute
         );
 
         if (damagedCount > 0)
@@ -378,7 +423,53 @@ public class PlayerCombat2D : MonoBehaviour
             PlayHitSfx(isMelee: true);
             TriggerHitStop(GetHitStopDuration(comboStep));
             _cameraShake?.Shake(GetShakeIntensity(comboStep));
+
+            // 평타 적중 시 궁극기 게이지 획득
+            // 궁극기(comboStep < 0) 타격은 게이지를 올리지 않음
+            if (comboStep >= 0)
+                AddUltimateGauge(basicAttackHitGain);
         }
+    }
+
+    /// <summary>
+    /// [궁극기] 근접 전방향 AoE 타격.
+    /// TryTriggerUltimate() → ExecuteUltimate() 순으로 호출됨.
+    ///
+    /// 캐릭터 설정으로 달라지는 것:
+    ///   ultimateAttackDef (coefficient, attribute)
+    ///   ultimateRange, ultimateAngle
+    /// 계산 공식은 CalculateSkillDamage()로 공통 처리.
+    /// </summary>
+    protected override void ExecuteUltimate()
+    {
+        if (!ResolveAttackPoint()) return;
+
+        int dmg = CalculateSkillDamage(ultimateAttackDef, fallbackFlatAttack: 30);
+        Vector2 origin = attackPoint.position;
+        // 전방향(360°)이면 aimDirection은 관계없음 — 기준으로 right 사용
+        Vector2 aimDir = ultimateAngle >= 360f ? Vector2.right : GetCurrentAimDirection();
+
+        int damagedCount = MeleeHitResolver2D.DealDamageInCone(
+            origin,
+            aimDir,
+            attackPointDistance,
+            ultimateRange,
+            ultimateAngle,
+            dmg,
+            targetLayer,
+            this,
+            "PlayerCombat2D/Ultimate",
+            ultimateAttackDef.attribute
+        );
+
+        if (damagedCount > 0)
+        {
+            PlayHitSfx(isMelee: true);
+            TriggerHitStop(0.15f);
+            _cameraShake?.Shake(0.20f);
+        }
+
+        Debug.Log($"[PlayerCombat2D] 궁극기 — 피격 수: {damagedCount} / 데미지: {dmg}", this);
     }
 
     private bool ResolveAttackPoint()
@@ -426,30 +517,25 @@ public class PlayerCombat2D : MonoBehaviour
         return aimDirection;
     }
 
-    private void GetComboStepStats(int comboStep, out int damage, out float range, out float angle)
+    // 콤보 단계 → AttackDefinition 반환 (계수·속성 포함)
+    private AttackDefinition GetComboAttackDef(int comboStep)
     {
         switch (comboStep)
         {
-            case 1:
-                damage = combo1Damage;
-                range = combo1Range;
-                angle = combo1Angle;
-                break;
-            case 2:
-                damage = combo2Damage;
-                range = combo2Range;
-                angle = combo2Angle;
-                break;
-            case 3:
-                damage = combo3Damage;
-                range = combo3Range;
-                angle = combo3Angle;
-                break;
-            default:
-                damage = combo1Damage;
-                range = combo1Range;
-                angle = combo1Angle;
-                break;
+            case 1:  return combo1Attack;
+            case 2:  return combo2Attack;
+            default: return combo3Attack;
+        }
+    }
+
+    // 콤보 단계 → 판정 반경·각도만 반환 (피격 지오메트리 전용)
+    private void GetComboStepGeometry(int comboStep, out float range, out float angle)
+    {
+        switch (comboStep)
+        {
+            case 1:  range = combo1Range; angle = combo1Angle; break;
+            case 2:  range = combo2Range; angle = combo2Angle; break;
+            default: range = combo3Range; angle = combo3Angle; break;
         }
     }
 
