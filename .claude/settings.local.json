@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(claude mcp:*)",
-      "Bash(find /c/Users/soulc/Agent -name TODO* -o -name TASK* -o -name *.todo)"
+      "Bash(find /c/Users/soulc/Agent -name TODO* -o -name TASK* -o -name *.todo)",
+      "mcp__serena__list_dir",
+      "mcp__serena__get_symbols_overview"
     ]
   }
 }

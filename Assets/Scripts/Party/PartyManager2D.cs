@@ -65,6 +65,8 @@ public class PartyManager2D : MonoBehaviour
 
     private MemberCache[] _cache;
     private int _currentIndex = 0;
+    private int _standbyLayer;
+    private int _activeLayer;
 
     // ─────────────────────────────────────────────────────────────
     // Inspector — 스위칭 연출
@@ -164,6 +166,9 @@ public class PartyManager2D : MonoBehaviour
                                  "PlayerCombat2D/PlayerRangedAttack2D가 루트 GameObject에 붙어 있는지 확인하세요.", this);
         }
 
+        _standbyLayer = LayerMask.NameToLayer("StandbyCharacter");
+        _activeLayer  = LayerMask.NameToLayer("Player");
+
         _switch1 = new InputAction("PartySwitch1", InputActionType.Button, "<Keyboard>/1");
         _switch2 = new InputAction("PartySwitch2", InputActionType.Button, "<Keyboard>/2");
         _switch3 = new InputAction("PartySwitch3", InputActionType.Button, "<Keyboard>/3");
@@ -194,8 +199,9 @@ public class PartyManager2D : MonoBehaviour
     private void OnEnable()
     {
         _switch1.performed += OnSwitch1;
-        _switch2.performed += OnSwitch2;
-        _switch3.performed += OnSwitch3;
+        // TODO: 스위칭 테스트 후 복구
+        // _switch2.performed += OnSwitch2;
+        // _switch3.performed += OnSwitch3;
         _switch1.Enable();
         _switch2.Enable();
         _switch3.Enable();
@@ -207,8 +213,9 @@ public class PartyManager2D : MonoBehaviour
     private void OnDisable()
     {
         _switch1.performed -= OnSwitch1;
-        _switch2.performed -= OnSwitch2;
-        _switch3.performed -= OnSwitch3;
+        // TODO: 스위칭 테스트 후 복구
+        // _switch2.performed -= OnSwitch2;
+        // _switch3.performed -= OnSwitch3;
         _switch1.Disable();
         _switch2.Disable();
         _switch3.Disable();
@@ -293,7 +300,7 @@ public class PartyManager2D : MonoBehaviour
 
         if (nextIndex < 0)
         {
-            Debug.Log("[PartyManager] 전원 사망 — 미구현");
+            if (GameManager.Instance != null) GameManager.Instance.GameOver();
             return;
         }
 
@@ -408,8 +415,14 @@ public class PartyManager2D : MonoBehaviour
             m.rb.angularVelocity = 0f;
         }
 
+        m.go.layer = _activeLayer;
         foreach (var col in m.colliders)
-            if (col != null) col.isTrigger = false;
+        {
+            if (col == null) continue;
+            col.isTrigger = false;
+            if (col.gameObject != m.go)
+                col.gameObject.layer = _activeLayer;
+        }
 
         foreach (var combat in m.combatComponents)
             if (combat != null) combat.enabled = true;
@@ -464,8 +477,14 @@ public class PartyManager2D : MonoBehaviour
             m.rb.bodyType        = RigidbodyType2D.Kinematic;
         }
 
+        m.go.layer = _standbyLayer;
         foreach (var col in m.colliders)
-            if (col != null) col.isTrigger = true;
+        {
+            if (col == null) continue;
+            col.isTrigger = false;
+            if (col.gameObject != m.go)
+                col.gameObject.layer = _standbyLayer;
+        }
 
         // ── 디버그 로그 ──────────────────────────────
         var controllerState = m.controller != null ? m.controller.enabled.ToString() : "null";

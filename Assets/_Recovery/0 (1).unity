@@ -332,7 +332,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 341437728}
-  - component: {fileID: 341437729}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -355,18 +354,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &341437729
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 341437727}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4fe9eb112d48a8d438607910b6848ffd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameManager
 --- !u!1 &438087420
 GameObject:
   m_ObjectHideFlags: 0
@@ -423,7 +410,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 490184800}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: AttackPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -454,7 +441,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 496170338}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: PlayerInput
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -486,7 +473,7 @@ GameObject:
   m_Component:
   - component: {fileID: 617808915}
   - component: {fileID: 617808916}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Fill
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -577,7 +564,7 @@ GameObject:
   m_Component:
   - component: {fileID: 651414074}
   - component: {fileID: 651414075}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Fill
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -700,7 +687,7 @@ GameObject:
   - component: {fileID: 680266093}
   - component: {fileID: 680266094}
   - component: {fileID: 680266095}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: PartyManager2D
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -736,6 +723,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PartyManager2D
   partyMembers:
   - {fileID: 2145049391}
+  - {fileID: 853127792}
+  - {fileID: 1303137713}
   standbyOffsetA: {x: 0, y: 0, z: 0}
   standbyOffsetB: {x: 0, y: 0, z: 0}
   switchCooldown: 0.5
@@ -747,7 +736,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 680266092}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
   m_Name: 
@@ -910,7 +899,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 827985104}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: PlayerRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -951,13 +940,13 @@ GameObject:
   - component: {fileID: 853127795}
   - component: {fileID: 853127794}
   - component: {fileID: 853127793}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: PartyMember_01 (1)
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!212 &853127793
 SpriteRenderer:
   serializedVersion: 2
@@ -1493,13 +1482,13 @@ GameObject:
   - component: {fileID: 1303137716}
   - component: {fileID: 1303137715}
   - component: {fileID: 1303137714}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: PartyMember_01 (2)
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!212 &1303137714
 SpriteRenderer:
   serializedVersion: 2
@@ -1905,7 +1894,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1404208973}
   - component: {fileID: 1404208974}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: HPbar
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1983,7 +1972,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1637654857}
   - component: {fileID: 1637654858}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: HPbar
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2202,7 +2191,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1958175126}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FirePoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2233,7 +2222,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1978893144}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: AttackPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2492,7 +2481,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2057837018}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: FirePoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2600,7 +2589,6 @@ GameObject:
   - component: {fileID: 2145049393}
   - component: {fileID: 2145049392}
   - component: {fileID: 2145049401}
-  - component: {fileID: 2145049402}
   m_Layer: 6
   m_Name: PartyMember_01
   m_TagString: Player
@@ -2974,69 +2962,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!114 &2145049402
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2145049391}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 684f6cd177a7c8e468be7cf287a80ef8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerRangedAttack2D
-  maxUltimateGauge: 20
-  basicAttackHitGain: 1
-  skillHitGain: 4
-  eSkillAttackDef:
-    coefficient: 1.1
-    category: 2
-    attribute: 1
-  fireAction:
-    m_Name: DoomGunFire
-    m_Type: 1
-    m_ExpectedControlType: 
-    m_Id: f99c278a-7c4e-4281-81c6-93db27067e54
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: e9513670-63ab-43dd-95d8-0334a8354ecf
-      m_Path: <Keyboard>/e
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: DoomGunFire
-      m_Flags: 0
-    m_Flags: 0
-  fireMode: 1
-  burstCount: 4
-  burstInterval: 0.08
-  range: 20
-  targetLayer:
-    serializedVersion: 2
-    m_Bits: 8
-  wallLayer:
-    serializedVersion: 2
-    m_Bits: 0
-  firePoint: {fileID: 0}
-  cooldown: 0.6
-  audioSource: {fileID: 0}
-  fireSfx: {fileID: 0}
-  fireSfxVolume: 0.9
-  gunHitStopDuration: 0.02
-  muzzleFlashPrefab: {fileID: 0}
-  hitEffectPrefab: {fileID: 0}
-  tracerRenderer: {fileID: 0}
-  tracerDuration: 0.05
-  enableBackstep: 1
-  backstepDistance: 2.5
-  backstepDuration: 0.2
-  backstepColliderRadius: 0.3
-  backstepWallLayer:
-    serializedVersion: 2
-    m_Bits: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
