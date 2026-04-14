@@ -46,6 +46,16 @@ public class PlayerCombat2D : BasePlayableCombat2D
     [Tooltip("궁극기 판정 콘 각도. 360이면 전방향 원형.")]
     [SerializeField] private float ultimateAngle = 360f;
 
+    [Header("Ultimate Buff")]
+    [Tooltip("궁극기 발동 시 범위 내 적을 밀어내는 넉백 힘.")]
+    [SerializeField] private float ultimateKnockbackForce = 15f;
+
+    [Tooltip("궁극기 발동 시 파티 전체 공격력 버프 지속 시간 (초).")]
+    [SerializeField] private float ultimateBuffDuration = 12f;
+
+    [Tooltip("궁극기 발동 시 파티 전체 공격력 배율 (1.5 = 50% 증가).")]
+    [SerializeField] private float ultimateAttackMultiplier = 1.5f;
+
     [Tooltip("궁극기 입력 키. 기본: Q키.")]
     [SerializeField] private InputAction ultimateAction = new InputAction(
         name: "Ultimate",
@@ -211,6 +221,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
     private bool _hasLoggedMissingAttackPoint;
     private Coroutine _hitStopRoutine;
     private Coroutine _attackSlowRoutine;
+    private Coroutine _ultimateBuffRoutine;
 
     // 공격 적중 시 카메라 셰이크 호출용 (null-safe: 없어도 동작)
     private CameraFollow2D _cameraShake;
@@ -432,44 +443,39 @@ public class PlayerCombat2D : BasePlayableCombat2D
     }
 
     /// <summary>
-    /// [궁극기] 근접 전방향 AoE 타격.
+    /// [궁극기] 파티 전체 공격력 버프.
     /// TryTriggerUltimate() → ExecuteUltimate() 순으로 호출됨.
-    ///
-    /// 캐릭터 설정으로 달라지는 것:
-    ///   ultimateAttackDef (coefficient, attribute)
-    ///   ultimateRange, ultimateAngle
-    /// 계산 공식은 CalculateSkillDamage()로 공통 처리.
+    /// 재발동 시 타이머 초기화 (중첩 없음).
     /// </summary>
     protected override void ExecuteUltimate()
     {
-        if (!ResolveAttackPoint()) return;
+        if (_ultimateBuffRoutine != null)
+            StopCoroutine(_ultimateBuffRoutine);
+        _ultimateBuffRoutine = StartCoroutine(UltimateBuffRoutine());
+    }
 
-        int dmg = CalculateSkillDamage(ultimateAttackDef, fallbackFlatAttack: 30);
-        Vector2 origin = attackPoint.position;
-        // 전방향(360°)이면 aimDirection은 관계없음 — 기준으로 right 사용
-        Vector2 aimDir = ultimateAngle >= 360f ? Vector2.right : GetCurrentAimDirection();
+    /// <summary>
+    /// 파티 전원의 AttackBuffMultiplier를 ultimateAttackMultiplier로 설정하고
+    /// ultimateBuffDuration 후 1로 복구.
+    /// </summary>
+    private IEnumerator UltimateBuffRoutine()
+    {
+        CharacterStats[] allStats = PartyManager2D.Instance != null
+            ? PartyManager2D.Instance.GetAllCharacterStats()
+            : System.Array.Empty<CharacterStats>();
 
-        int damagedCount = MeleeHitResolver2D.DealDamageInCone(
-            origin,
-            aimDir,
-            attackPointDistance,
-            ultimateRange,
-            ultimateAngle,
-            dmg,
-            targetLayer,
-            this,
-            "PlayerCombat2D/Ultimate",
-            ultimateAttackDef.attribute
-        );
+        foreach (var stats in allStats)
+            if (stats != null) stats.AttackBuffMultiplier = ultimateAttackMultiplier;
 
-        if (damagedCount > 0)
-        {
-            PlayHitSfx(isMelee: true);
-            TriggerHitStop(0.15f);
-            _cameraShake?.Shake(0.20f);
-        }
+        Debug.Log($"[PlayerCombat2D] 궁극기 버프 시작 — 공격력 ×{ultimateAttackMultiplier} / {ultimateBuffDuration}초", this);
 
-        Debug.Log($"[PlayerCombat2D] 궁극기 — 피격 수: {damagedCount} / 데미지: {dmg}", this);
+        yield return new WaitForSeconds(ultimateBuffDuration);
+
+        foreach (var stats in allStats)
+            if (stats != null) stats.AttackBuffMultiplier = 1f;
+
+        _ultimateBuffRoutine = null;
+        Debug.Log("[PlayerCombat2D] 궁극기 버프 종료 — 공격력 복구", this);
     }
 
     private bool ResolveAttackPoint()

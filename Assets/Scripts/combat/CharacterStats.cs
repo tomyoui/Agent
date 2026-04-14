@@ -24,10 +24,18 @@ public class CharacterStats : MonoBehaviour
     public int FinalHP =>
         Mathf.Max(1, Mathf.RoundToInt(baseStats.baseHP * (1f + baseStats.hpPercent)) + baseStats.flatHP);
 
+    // 외부 버프(궁극기 등)에서 일시적으로 곱하는 공격력 배율. 기본값 1(배율 없음).
+    private float _attackBuffMultiplier = 1f;
+    public float AttackBuffMultiplier
+    {
+        get => _attackBuffMultiplier;
+        set => _attackBuffMultiplier = Mathf.Max(0f, value);
+    }
+
     // float 유지 — 계수·보너스 계산 중 반올림 손실 방지.
     // 최종 int 변환은 DamageFormula.Calculate() 마지막에서만 수행.
     public float FinalAttack =>
-        Mathf.Max(0f, baseStats.baseAttack * (1f + baseStats.attackPercent) + baseStats.flatAttack);
+        Mathf.Max(0f, (baseStats.baseAttack * (1f + baseStats.attackPercent) + baseStats.flatAttack) * _attackBuffMultiplier);
 
     public int FinalDefense =>
         Mathf.Max(0, Mathf.RoundToInt(baseStats.baseDefense * (1f + baseStats.defensePercent)) + baseStats.flatDefense);

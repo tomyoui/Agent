@@ -112,6 +112,19 @@ public class PartyManager2D : MonoBehaviour
         return _cache[_currentIndex].go.GetComponent<CharacterStats>();
     }
 
+    /// <summary>
+    /// 파티 전원의 CharacterStats 배열 반환. 궁극기 버프 등 파티 전체 스탯 조작용.
+    /// null 슬롯(go==null)은 null로 채워짐 — 호출 측에서 null 체크 필요.
+    /// </summary>
+    public CharacterStats[] GetAllCharacterStats()
+    {
+        if (_cache == null) return System.Array.Empty<CharacterStats>();
+        var result = new CharacterStats[_cache.Length];
+        for (int i = 0; i < _cache.Length; i++)
+            result[i] = _cache[i].go != null ? _cache[i].go.GetComponent<CharacterStats>() : null;
+        return result;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Unity 생명주기
     // ─────────────────────────────────────────────────────────────
@@ -191,9 +204,6 @@ public class PartyManager2D : MonoBehaviour
             SetSpritesVisible(i, i == _currentIndex);
 
         Debug.Log($"[PartyManager] 초기화 완료. 활성 캐릭터: {_cache[_currentIndex].go.name}", this);
-
-        // 초기화 직후 실제 상태 덤프 — 로그에서 enabled 상태 확인
-        DumpState("Start");
     }
 
     private void OnEnable()
@@ -370,7 +380,6 @@ public class PartyManager2D : MonoBehaviour
         StartCoroutine(SwitchVisualRoutine(prevIndex, _currentIndex));
 
         Debug.Log($"[PartyManager] → [{_currentIndex + 1}번] {_cache[_currentIndex].go.name} 전환", this);
-        DumpState($"SwitchTo({index})");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -458,7 +467,6 @@ public class PartyManager2D : MonoBehaviour
     /// </summary>
     private void SetMemberAsStandby(int index)
     {
-        Debug.LogWarning($"[PartyManager] SetMemberAsStandby({index}) — currentIndex={_currentIndex}\n{System.Environment.StackTrace}", this);
         var m = _cache[index];
 
         if (m.controller != null)

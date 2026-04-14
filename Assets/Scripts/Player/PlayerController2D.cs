@@ -111,7 +111,6 @@ public class PlayerController2D : MonoBehaviour
     private void OnMovePerformed(InputAction.CallbackContext context)
     {
         _moveInput = context.ReadValue<Vector2>();
-        Debug.Log($"[PlayerController2D] OnMovePerformed ← {gameObject.name}  input={_moveInput}", this);
 
         if (_moveInput.sqrMagnitude > 0.0001f)
         {
