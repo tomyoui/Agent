@@ -9,6 +9,8 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    [SerializeField] private GameOverUI gameOverUI;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -27,6 +29,7 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         Time.timeScale = 0f;
+        if (gameOverUI != null) gameOverUI.Show();
         Debug.Log("[GameManager] Game Over");
     }
 
@@ -36,6 +39,7 @@ public class GameManager : MonoBehaviour
     public void RestartGame()
     {
         Time.timeScale = 1f;
+        if (gameOverUI != null) gameOverUI.Hide();
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
