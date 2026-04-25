@@ -7,7 +7,7 @@ public class EnemyMelee2D : MonoBehaviour
 {
     [Header("Target")]
     [Tooltip("추적할 대상 Transform (미할당 시 playerTag로 자동 탐색)")]
-    [SerializeField] private Transform target;
+    private Transform target;
     [Tooltip("플레이어를 자동 탐색할 때 사용하는 태그")]
     [SerializeField] private string playerTag = "Player";
 
@@ -37,6 +37,7 @@ public class EnemyMelee2D : MonoBehaviour
     {
         _rb = GetComponent<Rigidbody2D>();
         _knockbackReceiver = GetComponent<KnockbackReceiver2D>();
+        target = null;
         ResolveTarget();
     }
 
@@ -123,21 +124,18 @@ public class EnemyMelee2D : MonoBehaviour
 
     private bool ResolveTarget()
     {
-        if (target == null)
+        if (PartyManager2D.Instance != null)
+        {
+            GameObject current = PartyManager2D.Instance.CurrentMember;
+            target = current != null ? current.transform : null;
+        }
+        else if (target == null)
         {
             GameObject player = GameObject.FindGameObjectWithTag(playerTag);
-            if (player != null)
-            {
-                target = player.transform;
-            }
+            if (player != null) target = player.transform;
         }
 
-        if (target == null)
-        {
-            return false;
-        }
-
-        return true;
+        return target != null;
     }
 
     private void OnDisable()

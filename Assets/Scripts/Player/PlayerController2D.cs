@@ -79,10 +79,9 @@ public class PlayerController2D : MonoBehaviour
         if (_sprintAction != null) { _sprintAction.performed -= OnSprintPerformed;  _sprintAction.canceled -= OnSprintCanceled; }
         if (_dashAction != null)     _dashAction.performed   -= OnDashPerformed;
 
-        // standby 캐릭터의 action은 꺼서 입력 차단
-        _moveAction?.Disable();
-        _sprintAction?.Disable();
-        _dashAction?.Disable();
+        // Disable() 호출 금지 — _moveAction 등은 세 캐릭터가 공유하는 동일 객체.
+        // 한 컨트롤러가 Disable()하면 다른 캐릭터의 입력까지 꺼진다.
+        // 입력 차단은 controller.enabled = false → FixedUpdate 정지로 충분.
     }
 
     private void FixedUpdate()
@@ -154,4 +153,5 @@ public class PlayerController2D : MonoBehaviour
         _dashEndTime = Time.time + Mathf.Max(0.01f, dashDuration);
         _nextDashTime = Time.time + Mathf.Max(0.01f, dashCooldown);
     }
+
 }

@@ -61,6 +61,7 @@ public class PartyManager2D : MonoBehaviour
         public SpriteRenderer[]       renderers;     // 비주얼 on/off 및 연출용
         public Vector3                originalScale;  // Awake 시점 localScale — 연출 후 복구 기준
         public PlayerRangedAttack2D   rangedAttack;  // E키 스킬 라우팅용 (없으면 null)
+        public bool                   isDead;        // 사망 확정 플래그 — SetActive 타이밍과 무관
     }
 
     private MemberCache[] _cache;
@@ -209,9 +210,8 @@ public class PartyManager2D : MonoBehaviour
     private void OnEnable()
     {
         _switch1.performed += OnSwitch1;
-        // TODO: 스위칭 테스트 후 복구
-        // _switch2.performed += OnSwitch2;
-        // _switch3.performed += OnSwitch3;
+        _switch2.performed += OnSwitch2;
+        _switch3.performed += OnSwitch3;
         _switch1.Enable();
         _switch2.Enable();
         _switch3.Enable();
@@ -223,9 +223,8 @@ public class PartyManager2D : MonoBehaviour
     private void OnDisable()
     {
         _switch1.performed -= OnSwitch1;
-        // TODO: 스위칭 테스트 후 복구
-        // _switch2.performed -= OnSwitch2;
-        // _switch3.performed -= OnSwitch3;
+        _switch2.performed -= OnSwitch2;
+        _switch3.performed -= OnSwitch3;
         _switch1.Disable();
         _switch2.Disable();
         _switch3.Disable();
@@ -235,19 +234,8 @@ public class PartyManager2D : MonoBehaviour
     }
 
     /// <summary>
-    /// 매 프레임 대기 캐릭터를 활성 캐릭터 위치 기준으로 재배치.
-    /// LateUpdate: 활성 캐릭터의 FixedUpdate(물리 이동) 완료 후 읽어야
-    /// 대기 캐릭터가 한 프레임 뒤처지지 않음.
-    /// </summary>
-    private void LateUpdate()
-    {
-        if (_cache == null) return;
-        PlaceStandbyMembers();
-    }
-
-    /// <summary>
     /// 대기 캐릭터를 활성 캐릭터 위치 기준 오프셋으로 즉시 배치.
-    /// Start()와 LateUpdate() 양쪽에서 호출 — 첫 프레임 겹침 방지.
+    /// Start() 초기 배치 및 SwitchTo() 전환 시 한 번만 호출.
     /// </summary>
     private void PlaceStandbyMembers()
     {
@@ -295,13 +283,13 @@ public class PartyManager2D : MonoBehaviour
             if (_cache[i].go == deadMember) { deadIndex = i; break; }
         }
         if (deadIndex < 0) return;
+        _cache[deadIndex].isDead = true;
 
         // 다음 살아있는 캐릭터 탐색 (0→1→2 순서)
         int nextIndex = -1;
         for (int i = 0; i < _cache.Length; i++)
         {
-            if (i == deadIndex) continue;
-            if (_cache[i].go != null && _cache[i].go.activeSelf)
+            if (_cache[i].go != null && !_cache[i].isDead)
             {
                 nextIndex = i;
                 break;
@@ -340,7 +328,7 @@ public class PartyManager2D : MonoBehaviour
 
     /// <summary>
     /// 인덱스만 변경 후 입력/제어 상태를 재적용.
-    /// 위치 재배치는 LateUpdate가 자동 처리.
+    /// 위치 재배치는 SwitchTo() 내부에서 처리.
     /// </summary>
     private void SwitchTo(int index)
     {
@@ -348,6 +336,7 @@ public class PartyManager2D : MonoBehaviour
         if (index == _currentIndex) return;
         if (index < 0 || index >= _cache.Length) return;
         if (_cache[index].go == null) return;
+        if (_cache[index].isDead) return;
 
         // 쿨타임 체크 — 0.5초 내 재입력 무시
         if (Time.time < _nextSwitchTime)
@@ -375,6 +364,9 @@ public class PartyManager2D : MonoBehaviour
 
         // 입력/물리 상태 즉시 전환 (연출과 독립)
         ApplyControlState();
+
+        // 대기 캐릭터를 새 활성 캐릭터 위치 기준으로 재배치
+        PlaceStandbyMembers();
 
         // 연출: 이전 캐릭터 아웃 + 새 캐릭터 인
         StartCoroutine(SwitchVisualRoutine(prevIndex, _currentIndex));
@@ -419,19 +411,29 @@ public class PartyManager2D : MonoBehaviour
 
         if (m.rb != null)
         {
-            m.rb.bodyType        = RigidbodyType2D.Dynamic;
-            m.rb.linearVelocity  = Vector2.zero;
-            m.rb.angularVelocity = 0f;
+            m.rb.bodyType       = RigidbodyType2D.Dynamic;
+            m.rb.simulated      = true;
+            m.rb.linearVelocity = Vector2.zero;
+            m.rb.WakeUp();
         }
 
         m.go.layer = _activeLayer;
         foreach (var col in m.colliders)
         {
             if (col == null) continue;
-            col.isTrigger = false;
+            
+            // 비활성 자식 객체의 콜라이더일 경우 강제 활성화 방어용 (만약 있다면)
+            if (!col.gameObject.activeSelf && col.gameObject != m.go)
+                col.gameObject.SetActive(true);
+
+            col.enabled = true;
+            
             if (col.gameObject != m.go)
                 col.gameObject.layer = _activeLayer;
         }
+        
+        // 위치이동과 콜라이더 활성화가 한 프레임에 일어났으므로 물리엔진 갱신 트리거
+        Physics2D.SyncTransforms();
 
         foreach (var combat in m.combatComponents)
             if (combat != null) combat.enabled = true;
@@ -483,13 +485,14 @@ public class PartyManager2D : MonoBehaviour
             m.rb.linearVelocity  = Vector2.zero;
             m.rb.angularVelocity = 0f;
             m.rb.bodyType        = RigidbodyType2D.Kinematic;
+            m.rb.simulated       = false;
         }
 
         m.go.layer = _standbyLayer;
         foreach (var col in m.colliders)
         {
             if (col == null) continue;
-            col.isTrigger = false;
+            col.enabled = false;
             if (col.gameObject != m.go)
                 col.gameObject.layer = _standbyLayer;
         }
