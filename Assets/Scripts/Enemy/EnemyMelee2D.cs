@@ -10,6 +10,8 @@ public class EnemyMelee2D : MonoBehaviour
     private Transform target;
     [Tooltip("플레이어를 자동 탐색할 때 사용하는 태그")]
     [SerializeField] private string playerTag = "Player";
+    [Tooltip("Enemy attack overlap uses this mask to find player colliders.")]
+    [SerializeField] private LayerMask playerLayer;
 
     [Header("Chase")]
     [Tooltip("플레이어 추적 이동 속도")]
@@ -37,6 +39,7 @@ public class EnemyMelee2D : MonoBehaviour
     {
         _rb = GetComponent<Rigidbody2D>();
         _knockbackReceiver = GetComponent<KnockbackReceiver2D>();
+        EnsurePlayerLayerConfigured();
         target = null;
         ResolveTarget();
     }
@@ -109,13 +112,13 @@ public class EnemyMelee2D : MonoBehaviour
             return;
         }
 
-        LayerMask targetMask = 1 << target.gameObject.layer;
+        EnsurePlayerLayerConfigured();
 
         MeleeHitResolver2D.DealDamageInRange(
             transform.position,
             attackRange,
             attackDamage,
-            targetMask,
+            playerLayer,
             this,
             "EnemyMelee2D",
             CombatAttribute.Justice   // 현재 적 근접 공격 = 정의 속성 (임시). 적별 속성 추가 시 Inspector 필드로 분리
@@ -127,15 +130,47 @@ public class EnemyMelee2D : MonoBehaviour
         if (PartyManager2D.Instance != null)
         {
             GameObject current = PartyManager2D.Instance.CurrentMember;
-            target = current != null ? current.transform : null;
+            target = current != null && IsInPlayerLayer(current) ? current.transform : null;
         }
         else if (target == null)
         {
-            GameObject player = GameObject.FindGameObjectWithTag(playerTag);
-            if (player != null) target = player.transform;
+            GameObject[] players = GameObject.FindGameObjectsWithTag(playerTag);
+            for (int i = 0; i < players.Length; i++)
+            {
+                if (players[i] != null && IsInPlayerLayer(players[i]))
+                {
+                    target = players[i].transform;
+                    break;
+                }
+            }
         }
 
         return target != null;
+    }
+
+    private bool IsInPlayerLayer(GameObject candidate)
+    {
+        EnsurePlayerLayerConfigured();
+        return candidate != null && (playerLayer.value & (1 << candidate.layer)) != 0;
+    }
+
+    private void EnsurePlayerLayerConfigured()
+    {
+        if (playerLayer.value != 0)
+        {
+            return;
+        }
+
+        int layer = LayerMask.NameToLayer("Player");
+        if (layer >= 0)
+        {
+            playerLayer = 1 << layer;
+        }
+    }
+
+    private void OnValidate()
+    {
+        EnsurePlayerLayerConfigured();
     }
 
     private void OnDisable()

@@ -405,6 +405,11 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
 
         // IDamageable 인터페이스 — PlayerCombat2D(정의 검)와 동일한 인터페이스 공용
         IDamageable damageable = hit.collider.GetComponentInParent<IDamageable>();
+        if (damageable == null && hit.collider.transform.root != null)
+        {
+            damageable = hit.collider.transform.root.GetComponentInChildren<IDamageable>();
+        }
+
         if (damageable == null)
         {
             Debug.Log($"[DoomGun] [{shotIndex + 1}] IDamageable 없음: {hit.collider.gameObject.name}", this);
@@ -416,8 +421,16 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
         int dmg = CalculateSkillDamage(eSkillAttackDef, fallbackFlatAttack: 20);
         damageable.TakeDamage(dmg, eSkillAttackDef.attribute);
 
-        // E 스킬 적중 시 궁극기 게이지 획득
-        AddUltimateGauge(skillHitGain);
+        // Route skill gain to the primary combat component when this character has one,
+        // so melee and ranged hits fill the same ultimate gauge.
+        if (_playerCombat != null)
+        {
+            _playerCombat.AddUltimateGauge(skillHitGain);
+        }
+        else
+        {
+            AddUltimateGauge(skillHitGain);
+        }
 
         if (_playerCombat != null) _playerCombat.PlayHitSfx(false); // 총 피격음
 

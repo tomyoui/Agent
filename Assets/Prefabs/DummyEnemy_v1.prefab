@@ -206,6 +206,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMelee2D
   target: {fileID: 0}
   playerTag: Player
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 64
   moveSpeed: 2.5
   attackRange: 1.2
   attackWindup: 0.2

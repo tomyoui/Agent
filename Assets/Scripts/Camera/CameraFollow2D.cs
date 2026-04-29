@@ -29,6 +29,9 @@ public class CameraFollow2D : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (PartyManager2D.Instance != null)
+            target = PartyManager2D.Instance.CurrentMember?.transform;
+
         if (target == null)
         {
             return;

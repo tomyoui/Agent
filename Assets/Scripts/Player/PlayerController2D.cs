@@ -1,29 +1,23 @@
- using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-[RequireComponent(typeof(PlayerInput))]
 public class PlayerController2D : MonoBehaviour
 {
     [Header("Movement")]
-    [Tooltip("기본 이동 속도")]
+    [Tooltip("Base movement speed.")]
     [SerializeField] private float walkSpeed = 4.0f;
-    [Tooltip("달리기 시 walkSpeed에 곱해지는 배율")]
+    [Tooltip("Sprint speed multiplier.")]
     [SerializeField] private float runSpeedMultiplier = 3.0f;
 
     [Header("Dash")]
-    [Tooltip("대시 이동 속도")]
+    [Tooltip("Dash speed.")]
     [SerializeField] private float dashSpeed = 12.0f;
-    [Tooltip("대시 지속 시간 (초)")]
+    [Tooltip("Dash duration in seconds.")]
     [SerializeField] private float dashDuration = 0.15f;
-    [Tooltip("대시 쿨다운 (초)")]
+    [Tooltip("Dash cooldown in seconds.")]
     [SerializeField] private float dashCooldown = 0.5f;
 
     private Rigidbody2D _rb;
-    private PlayerInput _playerInput;
-    private InputAction _moveAction;
-    private InputAction _sprintAction;
-    private InputAction _dashAction;
     private Vector2 _moveInput;
     private Vector2 _lastNonZeroMoveDirection = Vector2.down;
     private bool _isSprinting;
@@ -32,61 +26,30 @@ public class PlayerController2D : MonoBehaviour
     private float _dashEndTime;
     private float _nextDashTime;
 
-    // true인 동안 FixedUpdate의 일반 이동이 중단됨 (백스텝 등 외부 제어용)
     public bool IsVelocityLocked { get; set; }
 
-    // 0~1 범위. 공격 중 감속 배율. 1 = 평속, 0 = 완전 정지.
-    // PlayerCombat2D가 공격 시작 시 설정하고, 지속 시간 후 1로 복구.
+    // 0~1 range. PlayerCombat2D uses this to apply temporary movement slowdowns.
     public float AttackSpeedMultiplier { get; set; } = 1f;
 
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
-        _playerInput = GetComponent<PlayerInput>();
-
-        // throwIfNotFound=false 로 바꾸고 null 검사 — 액션 이름 오타 시 즉시 발견
-        _moveAction   = _playerInput.actions.FindAction("Move",   throwIfNotFound: false);
-        _sprintAction = _playerInput.actions.FindAction("Sprint", throwIfNotFound: false);
-        _dashAction   = _playerInput.actions.FindAction("Dash",   throwIfNotFound: false);
-
-        if (_moveAction   == null) Debug.LogError("[PlayerController2D] InputAction 'Move' 를 찾지 못했습니다. .inputactions 파일에 'Move' 가 있는지 확인하세요.", this);
-        if (_sprintAction == null) Debug.LogError("[PlayerController2D] InputAction 'Sprint' 를 찾지 못했습니다.", this);
-        if (_dashAction   == null) Debug.LogError("[PlayerController2D] InputAction 'Dash' 를 찾지 못했습니다.", this);
-    }
-
-    private void OnEnable()
-    {
-        Debug.Log($"[PlayerController2D] OnEnable ← {gameObject.name}", this);
-
-        // PlayerInput은 키보드를 얻지 못한 캐릭터의 ActionMap을 DeactivateInput()으로 끔.
-        // 명시적으로 개별 Action을 Enable해서 PlayerInput의 pairing 상태를 우회한다.
-        _moveAction?.Enable();
-        _sprintAction?.Enable();
-        _dashAction?.Enable();
-
-        if (_moveAction != null)   { _moveAction.performed   += OnMovePerformed;   _moveAction.canceled   += OnMoveCanceled; }
-        if (_sprintAction != null) { _sprintAction.performed += OnSprintPerformed;  _sprintAction.canceled += OnSprintCanceled; }
-        if (_dashAction != null)     _dashAction.performed   += OnDashPerformed;
-
-        Debug.Log($"[PlayerController2D] OnEnable 완료 ← {gameObject.name}  moveAction.enabled={_moveAction?.enabled}  bindings={_moveAction?.bindings.Count}", this);
     }
 
     private void OnDisable()
     {
-        Debug.Log($"[PlayerController2D] OnDisable ← {gameObject.name}", this);
+        _moveInput = Vector2.zero;
+        _isSprinting = false;
+        _isDashing = false;
 
-        if (_moveAction != null)   { _moveAction.performed   -= OnMovePerformed;   _moveAction.canceled   -= OnMoveCanceled; }
-        if (_sprintAction != null) { _sprintAction.performed -= OnSprintPerformed;  _sprintAction.canceled -= OnSprintCanceled; }
-        if (_dashAction != null)     _dashAction.performed   -= OnDashPerformed;
-
-        // Disable() 호출 금지 — _moveAction 등은 세 캐릭터가 공유하는 동일 객체.
-        // 한 컨트롤러가 Disable()하면 다른 캐릭터의 입력까지 꺼진다.
-        // 입력 차단은 controller.enabled = false → FixedUpdate 정지로 충분.
+        if (_rb != null)
+        {
+            _rb.linearVelocity = Vector2.zero;
+        }
     }
 
     private void FixedUpdate()
     {
-        // 대시 중
         if (_isDashing)
         {
             if (Time.time >= _dashEndTime)
@@ -100,16 +63,18 @@ public class PlayerController2D : MonoBehaviour
             }
         }
 
-        // 백스텝 등 외부 velocity 제어 중 — 일반 이동 중단
-        if (IsVelocityLocked) return;
+        if (IsVelocityLocked)
+        {
+            return;
+        }
 
         float speed = _isSprinting ? walkSpeed * runSpeedMultiplier : walkSpeed;
         _rb.linearVelocity = _moveInput * speed * AttackSpeedMultiplier;
     }
 
-    private void OnMovePerformed(InputAction.CallbackContext context)
+    public void SetMoveInput(Vector2 input)
     {
-        _moveInput = context.ReadValue<Vector2>();
+        _moveInput = Vector2.ClampMagnitude(input, 1f);
 
         if (_moveInput.sqrMagnitude > 0.0001f)
         {
@@ -117,22 +82,12 @@ public class PlayerController2D : MonoBehaviour
         }
     }
 
-    private void OnMoveCanceled(InputAction.CallbackContext context)
+    public void SetRunHeld(bool held)
     {
-        _moveInput = Vector2.zero;
+        _isSprinting = held;
     }
 
-    private void OnSprintPerformed(InputAction.CallbackContext context)
-    {
-        _isSprinting = context.ReadValueAsButton();
-    }
-
-    private void OnSprintCanceled(InputAction.CallbackContext context)
-    {
-        _isSprinting = false;
-    }
-
-    private void OnDashPerformed(InputAction.CallbackContext context)
+    public void SetDashPressed()
     {
         if (Time.time < _nextDashTime)
         {
@@ -153,5 +108,4 @@ public class PlayerController2D : MonoBehaviour
         _dashEndTime = Time.time + Mathf.Max(0.01f, dashDuration);
         _nextDashTime = Time.time + Mathf.Max(0.01f, dashCooldown);
     }
-
 }
