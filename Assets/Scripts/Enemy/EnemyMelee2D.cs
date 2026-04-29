@@ -104,12 +104,15 @@ public class EnemyMelee2D : MonoBehaviour
 
     private void ExecuteAttack()
     {
-        if (target == null)
+        // Re-resolve on the actual hit frame so party switching cannot leave us
+        // attacking the previous standby layer and make the active member untouchable.
+        if (!ResolveTarget() || target == null)
         {
             return;
         }
 
-        LayerMask targetMask = 1 << target.gameObject.layer;
+        GameObject currentTarget = target.gameObject;
+        LayerMask targetMask = 1 << currentTarget.layer;
 
         MeleeHitResolver2D.DealDamageInRange(
             transform.position,
