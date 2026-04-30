@@ -5,12 +5,12 @@ using UnityEngine;
 // [연결 방법]
 //   1. AttackPoint GameObject에 이 컴포넌트를 추가.
 //   2. Inspector에서 slashPrefab 할당.
-//   3. PlayerCombat2D.onComboAttack  → MeleeSlashVFX.PlayComboSlash (int 파라미터)
-//   4. PlayerCombat2D.onHeavyAttack  → MeleeSlashVFX.PlayHeavySlash
+//   3. Character combat onComboAttack  → MeleeSlashVFX.PlayComboSlash (int 파라미터)
+//   4. Character combat onHeavyAttack  → MeleeSlashVFX.PlayHeavySlash
 //
 // [VFX 방향]
 //   AttackPoint의 rotation이 조준 방향으로 매 프레임 갱신되므로
-//   (PlayerCombat2D.UpdateAttackPointFromMouse 참조)
+//   (character combat UpdateAttackPointFromMouse 참조)
 //   Instantiate 시 transform.rotation을 그대로 사용하면 슬래시가 공격 방향을 가리킴.
 [DisallowMultipleComponent]
 public class MeleeSlashVFX : MonoBehaviour
@@ -38,14 +38,14 @@ public class MeleeSlashVFX : MonoBehaviour
     [Tooltip("강공격 크기 배율.")]
     [SerializeField] private float heavyScale = 1.8f;
 
-    // PlayerCombat2D.onComboAttack (UnityEvent<int>) 에 Inspector에서 연결.
+    // Character combat onComboAttack (UnityEvent<int>) 에 Inspector에서 연결.
     // comboStep: 1=1타, 2=2타, 3=3타
     public void PlayComboSlash(int comboStep)
     {
         SpawnSlash(slashPrefab, GetComboScale(comboStep));
     }
 
-    // PlayerCombat2D.onHeavyAttack (UnityEvent) 에 Inspector에서 연결.
+    // Character combat onHeavyAttack (UnityEvent) 에 Inspector에서 연결.
     public void PlayHeavySlash()
     {
         GameObject prefab = heavySlashPrefab != null ? heavySlashPrefab : slashPrefab;

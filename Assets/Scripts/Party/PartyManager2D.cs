@@ -47,7 +47,21 @@ public class PartyManager2D : MonoBehaviour
     public BasePlayableCombat2D GetCurrentCombat()
     {
         GameObject current = CurrentMember;
-        return current != null ? current.GetComponent<BasePlayableCombat2D>() : null;
+        if (current == null)
+        {
+            return null;
+        }
+
+        BasePlayableCombat2D[] combatComponents = current.GetComponents<BasePlayableCombat2D>();
+        for (int i = 0; i < combatComponents.Length; i++)
+        {
+            if (combatComponents[i] != null && combatComponents[i].IsPrimaryCombat)
+            {
+                return combatComponents[i];
+            }
+        }
+
+        return combatComponents.Length > 0 ? combatComponents[0] : null;
     }
 
     public CharacterStats GetCurrentStats()
@@ -184,9 +198,7 @@ public class PartyManager2D : MonoBehaviour
         }
 
         PlayerController2D controller = current.GetComponent<PlayerController2D>();
-        PlayerCombat2D combat = current.GetComponent<PlayerCombat2D>();
-        BasePlayableCombat2D ultimateCombat = current.GetComponent<BasePlayableCombat2D>();
-        PlayerRangedAttack2D rangedAttack = current.GetComponent<PlayerRangedAttack2D>();
+        BasePlayableCombat2D combat = GetCurrentCombat();
         Vector2 moveInput = ReadMoveInput();
 
         if (controller != null)
@@ -217,23 +229,23 @@ public class PartyManager2D : MonoBehaviour
 
         if (WasUltimatePressed())
         {
-            if (ultimateCombat == null)
+            if (combat == null)
             {
                 Debug.LogWarning($"[PartyManager2D] {current.name} has no BasePlayableCombat2D for ultimate input.", current);
             }
-            else if (ultimateCombat.CanUseUltimate())
+            else if (combat.CanUseUltimate())
             {
-                ultimateCombat.TryTriggerUltimate();
+                combat.RequestUltimate();
             }
             else
             {
-                Debug.Log($"[PartyManager2D] Ultimate is not ready for {current.name}: {ultimateCombat.GetUltimateGauge():0.##}/{ultimateCombat.GetUltimateMax():0.##}", current);
+                Debug.Log($"[PartyManager2D] Ultimate is not ready for {current.name}: {combat.GetUltimateGauge():0.##}/{combat.GetUltimateMax():0.##}", current);
             }
         }
 
-        if (rangedAttack != null && WasSkillPressed())
+        if (combat != null && WasSkillPressed())
         {
-            rangedAttack.TryFire();
+            combat.RequestSkill();
         }
 
         MaybeLogInputDebug(moveInput, current, controller);

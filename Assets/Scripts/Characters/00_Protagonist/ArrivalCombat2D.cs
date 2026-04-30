@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
 
-public class PlayerCombat2D : BasePlayableCombat2D
+public class ArrivalCombat2D : BasePlayableCombat2D
 {
     [Serializable]
     public class ComboEvent : UnityEvent<int> { }
@@ -134,14 +134,14 @@ public class PlayerCombat2D : BasePlayableCombat2D
         _cameraShake = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;
         if (_cameraShake == null)
         {
-            Debug.LogWarning("[PlayerCombat2D] CameraFollow2D not found. Camera shake is disabled.", this);
+            Debug.LogWarning("[ArrivalCombat2D] CameraFollow2D not found. Camera shake is disabled.", this);
         }
 
         _controller = GetComponent<PlayerController2D>();
 
         if (targetLayer.value == 0)
         {
-            Debug.LogWarning("[PlayerCombat2D] targetLayer is empty.", this);
+            Debug.LogWarning("[ArrivalCombat2D] targetLayer is empty.", this);
         }
     }
 
@@ -171,17 +171,17 @@ public class PlayerCombat2D : BasePlayableCombat2D
         }
     }
 
-    public void RequestAttack()
+    public override void RequestAttack()
     {
         TriggerComboAttack();
     }
 
-    public void RequestHeavyAttackStart()
+    public override void RequestHeavyAttackStart()
     {
         _attackPressStartTime = Time.time;
     }
 
-    public void RequestHeavyAttackRelease()
+    public override void RequestHeavyAttackRelease()
     {
         float heldTime = Time.time - _attackPressStartTime;
         if (heldTime >= heavyHoldThreshold)
@@ -190,9 +190,18 @@ public class PlayerCombat2D : BasePlayableCombat2D
         }
     }
 
-    public void RequestUltimate()
+    public override void RequestUltimate()
     {
         TryTriggerUltimate();
+    }
+
+    public override void RequestSkill()
+    {
+        PlayerRangedAttack2D rangedAttack = GetComponent<PlayerRangedAttack2D>();
+        if (rangedAttack != null)
+        {
+            rangedAttack.TryFire();
+        }
     }
 
     private void UpdateAttackPointFromMouse()
@@ -289,7 +298,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
             damage,
             targetLayer,
             this,
-            $"PlayerCombat2D/{attackType}",
+            $"ArrivalCombat2D/{attackType}",
             attribute
         );
 
@@ -323,7 +332,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
         ApplyUltimateBuff();
 
         Debug.Log(
-            $"[PlayerCombat2D] Ultimate buff start. attack x{ultimateAttackMultiplier:0.##}, cooldown x{ultimateCooldownMultiplier:0.##}, duration {ultimateBuffDuration:0.##}s",
+            $"[ArrivalCombat2D] Ultimate buff start. attack x{ultimateAttackMultiplier:0.##}, cooldown x{ultimateCooldownMultiplier:0.##}, duration {ultimateBuffDuration:0.##}s",
             this);
 
         yield return new WaitForSeconds(ultimateBuffDuration);
@@ -358,7 +367,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
         attackCooldown = _baseAttackCooldown > 0f ? _baseAttackCooldown : attackCooldown;
         _isUltimateBuffActive = false;
         _ultimateBuffRoutine = null;
-        Debug.Log("[PlayerCombat2D] Ultimate buff end", this);
+        Debug.Log("[ArrivalCombat2D] Ultimate buff end", this);
     }
 
     private bool ResolveAttackPoint()
@@ -379,7 +388,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
 
         if (!_hasLoggedMissingAttackPoint)
         {
-            Debug.LogError("[PlayerCombat2D] Missing AttackPoint transform.", this);
+            Debug.LogError("[ArrivalCombat2D] Missing AttackPoint transform.", this);
             _hasLoggedMissingAttackPoint = true;
         }
 
@@ -435,18 +444,18 @@ public class PlayerCombat2D : BasePlayableCombat2D
         }
     }
 
-    public void PlayHitSfx(bool isMelee)
+    public override void PlayHitSfx(bool isMelee)
     {
         if (audioSource == null)
         {
-            Debug.LogWarning("[PlayerCombat2D] AudioSource is not assigned.", this);
+            Debug.LogWarning("[ArrivalCombat2D] AudioSource is not assigned.", this);
             return;
         }
 
         AudioClip clip = isMelee ? meleeHitSfx : gunHitSfx;
         if (clip == null)
         {
-            Debug.LogWarning("[PlayerCombat2D] Hit SFX clip is not assigned.", this);
+            Debug.LogWarning("[ArrivalCombat2D] Hit SFX clip is not assigned.", this);
             return;
         }
 
@@ -457,13 +466,13 @@ public class PlayerCombat2D : BasePlayableCombat2D
     {
         if (hitAudioSource == null)
         {
-            Debug.LogWarning("[PlayerCombat2D] Heavy swing skipped: missing AudioSource.", this);
+            Debug.LogWarning("[ArrivalCombat2D] Heavy swing skipped: missing AudioSource.", this);
             return;
         }
 
         if (heavySwingClips == null || heavySwingClips.Length == 0)
         {
-            Debug.LogWarning("[PlayerCombat2D] Heavy swing skipped: no clips configured.", this);
+            Debug.LogWarning("[ArrivalCombat2D] Heavy swing skipped: no clips configured.", this);
             return;
         }
 
@@ -471,7 +480,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
         AudioClip clip = heavySwingClips[clipIndex];
         if (clip == null)
         {
-            Debug.LogWarning($"[PlayerCombat2D] Heavy swing skipped: clip {clipIndex} is null.", this);
+            Debug.LogWarning($"[ArrivalCombat2D] Heavy swing skipped: clip {clipIndex} is null.", this);
             return;
         }
 
@@ -532,7 +541,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
 
             if (knockbackReceiver == null)
             {
-                Debug.LogWarning($"[PlayerCombat2D] {hit.gameObject.name} has no KnockbackReceiver2D.", hit.gameObject);
+                Debug.LogWarning($"[ArrivalCombat2D] {hit.gameObject.name} has no KnockbackReceiver2D.", hit.gameObject);
                 continue;
             }
 
@@ -550,7 +559,7 @@ public class PlayerCombat2D : BasePlayableCombat2D
         }
     }
 
-    public void TriggerHitStop(float durationOverride = -1f)
+    public override void TriggerHitStop(float durationOverride = -1f)
     {
         float duration = durationOverride >= 0f ? durationOverride : hitStopDuration;
         if (duration <= 0f)
@@ -700,3 +709,4 @@ public class PlayerCombat2D : BasePlayableCombat2D
         }
     }
 }
+

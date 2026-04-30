@@ -24,6 +24,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     public float UltimateGaugeRatio => ultimateMax > 0f ? ultimateGauge / ultimateMax : 0f;
     public float CurrentUltimateGauge => ultimateGauge;
     public bool IsUltimateReady => CanUseUltimate();
+    public virtual bool IsPrimaryCombat => true;
 
     protected virtual void Awake()
     {
@@ -52,6 +53,19 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     {
         return ultimateGauge >= ultimateMax;
     }
+
+    public virtual void RequestAttack() { }
+
+    public virtual void RequestSkill() { }
+
+    public virtual void RequestUltimate()
+    {
+        TryTriggerUltimate();
+    }
+
+    public virtual void RequestHeavyAttackStart() { }
+
+    public virtual void RequestHeavyAttackRelease() { }
 
     public void AddUltimateGauge(float amount)
     {
@@ -110,4 +124,8 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     }
 
     public virtual void ExecuteUltimate() { }
+
+    public virtual void PlayHitSfx(bool isMelee) { }
+
+    public virtual void TriggerHitStop(float durationOverride = -1f) { }
 }

@@ -1490,9 +1490,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 853127792}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a708b29da0d585418ddded10418f7a8, type: 3}
+  m_Script: {fileID: 11500000, guid: dcc2f88b175eec94bb98fbe589cdfdbe, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat2D
+  m_EditorClassIdentifier: Assembly-CSharp::KasiaCombat2D
   maxUltimateGauge: 20
   basicAttackHitGain: 1
   skillHitGain: 4
@@ -2129,9 +2129,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1303137713}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a708b29da0d585418ddded10418f7a8, type: 3}
+  m_Script: {fileID: 11500000, guid: aa82dd544ece7f34eb4f7c903b73f34e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat2D
+  m_EditorClassIdentifier: Assembly-CSharp::AgnieszkaCombat2D
   maxUltimateGauge: 20
   basicAttackHitGain: 1
   skillHitGain: 4
@@ -3658,7 +3658,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a708b29da0d585418ddded10418f7a8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerCombat2D
+  m_EditorClassIdentifier: Assembly-CSharp::ArrivalCombat2D
   maxUltimateGauge: 20
   basicAttackHitGain: 1
   skillHitGain: 4

@@ -2,7 +2,7 @@
 /// 전투 속성 열거형.
 ///
 /// 현재 구현:
-///   Justice (정의) — PlayerCombat2D, 근접 검 공격
+///   Justice (정의) — character melee attacks
 ///   Doom    (파멸) — PlayerRangedAttack2D, 히트스캔 총
 ///
 /// 확장 자리 (미구현 — 기능 추가 시 주석 해제):

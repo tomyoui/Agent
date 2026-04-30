@@ -37,6 +37,8 @@ public enum FireMode { Single, Burst, Auto }
 /// </summary>
 public class PlayerRangedAttack2D : BasePlayableCombat2D
 {
+    public override bool IsPrimaryCombat => false;
+
     // ─────────────────────────────────────────────
     // Inspector — E 스킬 공격 정의
     // ─────────────────────────────────────────────
@@ -160,7 +162,7 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
     // 백스텝이 PlayerController2D.FixedUpdate와 충돌하지 않도록 참조 보관
     private Rigidbody2D _rb;
     private PlayerController2D _controller;  // null-safe: 없어도 동작
-    private PlayerCombat2D _playerCombat;    // 총 피격음/히트스탑 호출용, null-safe
+    private BasePlayableCombat2D _primaryCombat; // Shared gauge, hit SFX, and hit stop owner.
     private Coroutine _hideTracerRoutine;
 
     // ─────────────────────────────────────────────
@@ -172,12 +174,20 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
         _mainCamera = Camera.main;
         _rb = GetComponent<Rigidbody2D>();
         _controller = GetComponent<PlayerController2D>(); // 없으면 null (경고 없이 처리)
-        _playerCombat = GetComponent<PlayerCombat2D>();   // 없으면 null (경고 없이 처리)
+        BasePlayableCombat2D[] combatComponents = GetComponents<BasePlayableCombat2D>();
+        for (int i = 0; i < combatComponents.Length; i++)
+        {
+            if (combatComponents[i] != null && combatComponents[i] != this && combatComponents[i].IsPrimaryCombat)
+            {
+                _primaryCombat = combatComponents[i];
+                break;
+            }
+        }
 
         // [수정] 기존에는 _playerCombat이 null이어도 조용히 실패했음.
         // 인스펙터 구성 실수를 빠르게 발견할 수 있도록 Awake에서 경고 출력.
-        if (_playerCombat == null)
-            Debug.LogWarning("[DoomGun] PlayerCombat2D가 같은 GameObject에 없습니다. 총 피격음과 히트스탑이 동작하지 않습니다.", this);
+        if (_primaryCombat == null)
+            Debug.LogWarning("[DoomGun] Primary BasePlayableCombat2D가 같은 GameObject에 없습니다. 총 피격음과 히트스탑이 동작하지 않습니다.", this);
 
         if (_rb == null)
             Debug.LogWarning("[DoomGun] Rigidbody2D가 없습니다. 백스텝이 동작하지 않습니다.", this);
@@ -403,7 +413,7 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
             return;
         }
 
-        // IDamageable 인터페이스 — PlayerCombat2D(정의 검)와 동일한 인터페이스 공용
+        // IDamageable 인터페이스 — 캐릭터 근접 전투와 동일한 인터페이스 공용
         IDamageable damageable = hit.collider.GetComponentInParent<IDamageable>();
         if (damageable == null && hit.collider.transform.root != null)
         {
@@ -423,20 +433,20 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
 
         // Route skill gain to the primary combat component when this character has one,
         // so melee and ranged hits fill the same ultimate gauge.
-        if (_playerCombat != null)
+        if (_primaryCombat != null)
         {
-            _playerCombat.AddUltimateGauge(skillHitGain);
+            _primaryCombat.AddUltimateGauge(skillHitGain);
         }
         else
         {
             AddUltimateGauge(skillHitGain);
         }
 
-        if (_playerCombat != null) _playerCombat.PlayHitSfx(false); // 총 피격음
+        if (_primaryCombat != null) _primaryCombat.PlayHitSfx(false); // 총 피격음
 
         // [추가] 총 적중 피드백: 짧은 히트스탑
         // _playerCombat을 통해 히트스탑을 요청하여 근접/원거리 히트스탑이 충돌하지 않도록 단일 창구 유지
-        if (_playerCombat != null) _playerCombat.TriggerHitStop(gunHitStopDuration);
+        if (_primaryCombat != null) _primaryCombat.TriggerHitStop(gunHitStopDuration);
 
         Debug.Log($"[DoomGun] [{eSkillAttackDef.attribute}] [{shotIndex + 1}] 피격: {hit.collider.gameObject.name} / 데미지: {dmg}", this);
 

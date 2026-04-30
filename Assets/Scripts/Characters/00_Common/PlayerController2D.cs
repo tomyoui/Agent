@@ -28,7 +28,7 @@ public class PlayerController2D : MonoBehaviour
 
     public bool IsVelocityLocked { get; set; }
 
-    // 0~1 range. PlayerCombat2D uses this to apply temporary movement slowdowns.
+    // 0~1 range. Character combat scripts use this to apply temporary movement slowdowns.
     public float AttackSpeedMultiplier { get; set; } = 1f;
 
     private void Awake()
