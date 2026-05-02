@@ -1,3 +1,3 @@
-public class KasiaCombat2D : ArrivalCombat2D
+public class KasiaCombat2D : BasePlayableCombat2D
 {
 }

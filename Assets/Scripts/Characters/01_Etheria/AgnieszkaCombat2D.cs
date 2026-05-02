@@ -1,3 +1,3 @@
-public class AgnieszkaCombat2D : ArrivalCombat2D
+public class AgnieszkaCombat2D : BasePlayableCombat2D
 {
 }

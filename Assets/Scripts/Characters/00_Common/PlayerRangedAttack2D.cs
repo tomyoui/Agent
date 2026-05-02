@@ -206,7 +206,7 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
         // 자체 Enable/구독 없이 외부 호출 전담 구조로 변경.
     }
 
-    private void OnDisable()
+    protected override void OnDisable()
     {
         Debug.Log($"[PlayerRangedAttack2D] OnDisable ← {gameObject.name}", this);
         _isBurstActive = false;
@@ -230,7 +230,7 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
         }
     }
 
-    private void Update()
+    protected override void Update()
     {
         // Auto 모드: 버튼 홀드 중 반복 발사
         if (fireMode == FireMode.Auto && fireAction.IsPressed() && !_isBurstActive)
@@ -562,7 +562,7 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
     // ─────────────────────────────────────────────
     // 에디터 시각화
     // ─────────────────────────────────────────────
-    private void OnDrawGizmosSelected()
+    protected override void OnDrawGizmosSelected()
     {
         Vector3 origin = firePoint != null ? firePoint.position : transform.position;
 
