@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 63079364}
   - component: {fileID: 63079363}
   - component: {fileID: 63079362}
+  - component: {fileID: 63079366}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -210,7 +211,7 @@ RectTransform:
   m_GameObject: {fileID: 63079361}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1135692292}
@@ -221,6 +222,21 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!114 &63079366
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 63079361}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03626bff4fda5974bb8b7b8087f9b712, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameOverUI
+  panel: {fileID: 1135692291}
+  restartButton: {fileID: 828818705}
+  quitButton: {fileID: 2023359849}
 --- !u!1001 &89237955
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -469,7 +485,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4fe9eb112d48a8d438607910b6848ffd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  gameOverUI: {fileID: 1135692293}
+  gameOverUI: {fileID: 63079366}
 --- !u!1 &438087420
 GameObject:
   m_ObjectHideFlags: 0
@@ -1307,7 +1323,6 @@ GameObject:
   m_Component:
   - component: {fileID: 853127801}
   - component: {fileID: 853127800}
-  - component: {fileID: 853127799}
   - component: {fileID: 853127798}
   - component: {fileID: 853127797}
   - component: {fileID: 853127796}
@@ -1315,7 +1330,7 @@ GameObject:
   - component: {fileID: 853127794}
   - component: {fileID: 853127793}
   m_Layer: 6
-  m_Name: PartyMember_01 (1)
+  m_Name: Kasia
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1613,36 +1628,6 @@ MonoBehaviour:
   dashSpeed: 12
   dashDuration: 0.15
   dashCooldown: 0.5
---- !u!114 &853127799
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 853127792}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
-  m_Actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
-  m_NotificationBehavior: 0
-  m_UIInputModule: {fileID: 0}
-  m_DeviceLostEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_DeviceRegainedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ControlsChangedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ActionEvents: []
-  m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: 
-  m_DefaultActionMap: 
-  m_SplitScreenIndex: -1
-  m_Camera: {fileID: 0}
 --- !u!50 &853127800
 Rigidbody2D:
   serializedVersion: 5
@@ -1853,14 +1838,13 @@ GameObject:
   - component: {fileID: 1135692292}
   - component: {fileID: 1135692295}
   - component: {fileID: 1135692294}
-  - component: {fileID: 1135692293}
   m_Layer: 0
   m_Name: GameOverPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1135692292
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1883,21 +1867,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1135692293
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1135692291}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03626bff4fda5974bb8b7b8087f9b712, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameOverUI
-  panel: {fileID: 1135692291}
-  restartButton: {fileID: 828818705}
-  quitButton: {fileID: 2023359849}
 --- !u!114 &1135692294
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1946,7 +1915,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1303137722}
   - component: {fileID: 1303137721}
-  - component: {fileID: 1303137720}
   - component: {fileID: 1303137719}
   - component: {fileID: 1303137718}
   - component: {fileID: 1303137717}
@@ -1954,7 +1922,7 @@ GameObject:
   - component: {fileID: 1303137715}
   - component: {fileID: 1303137714}
   m_Layer: 6
-  m_Name: PartyMember_01 (2)
+  m_Name: Agnieszka
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2252,36 +2220,6 @@ MonoBehaviour:
   dashSpeed: 12
   dashDuration: 0.15
   dashCooldown: 0.5
---- !u!114 &1303137720
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1303137713}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
-  m_Actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
-  m_NotificationBehavior: 0
-  m_UIInputModule: {fileID: 0}
-  m_DeviceLostEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_DeviceRegainedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ControlsChangedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ActionEvents: []
-  m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: 
-  m_DefaultActionMap: 
-  m_SplitScreenIndex: -1
-  m_Camera: {fileID: 0}
 --- !u!50 &1303137721
 Rigidbody2D:
   serializedVersion: 5
@@ -3530,7 +3468,6 @@ GameObject:
   m_Component:
   - component: {fileID: 2145049400}
   - component: {fileID: 2145049398}
-  - component: {fileID: 2145049397}
   - component: {fileID: 2145049396}
   - component: {fileID: 2145049395}
   - component: {fileID: 2145049394}
@@ -3540,7 +3477,7 @@ GameObject:
   - component: {fileID: 2145049402}
   - component: {fileID: 2145049403}
   m_Layer: 6
-  m_Name: PartyMember_01
+  m_Name: Arrival
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3783,36 +3720,6 @@ MonoBehaviour:
   dashSpeed: 12
   dashDuration: 0.15
   dashCooldown: 0.5
---- !u!114 &2145049397
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2145049391}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
-  m_Actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
-  m_NotificationBehavior: 0
-  m_UIInputModule: {fileID: 0}
-  m_DeviceLostEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_DeviceRegainedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ControlsChangedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ActionEvents: []
-  m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: 
-  m_DefaultActionMap: 
-  m_SplitScreenIndex: -1
-  m_Camera: {fileID: 0}
 --- !u!50 &2145049398
 Rigidbody2D:
   serializedVersion: 5

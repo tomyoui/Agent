@@ -22,14 +22,32 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    private void Start()
+    {
+        if (gameOverUI != null)
+        {
+            gameOverUI.Hide();
+        }
+    }
+
     /// <summary>
     /// 전원 사망 등 게임 종료 조건 충족 시 호출.
     /// Time.timeScale을 0으로 고정해 모든 업데이트를 정지.
     /// </summary>
     public void GameOver()
     {
+        Debug.Log("[GameManager] GameOver() invoked.", this);
         Time.timeScale = 0f;
-        if (gameOverUI != null) gameOverUI.Show();
+        if (gameOverUI != null)
+        {
+            Debug.Log($"[GameManager] Showing GameOverUI component on {gameOverUI.gameObject.name}.", this);
+            gameOverUI.Show();
+        }
+        else
+        {
+            Debug.LogError("[GameManager] gameOverUI reference is null. Cannot show Game Over UI.", this);
+        }
+
         Debug.Log("[GameManager] Game Over");
     }
 

@@ -28,6 +28,7 @@ public class PartyManager2D : MonoBehaviour
     private float _nextSwitchTime;
     private bool[] _deadMembers;
     private float _nextDebugLogTime;
+    private bool _hasTriggeredGameOver;
 
     public int CurrentIndex => _currentIndex;
 
@@ -139,32 +140,40 @@ public class PartyManager2D : MonoBehaviour
 
     public void OnMemberDied(GameObject deadMember)
     {
+        Debug.Log($"[PartyManager2D] OnMemberDied received: member={(deadMember != null ? deadMember.name : "null")}", this);
         int deadIndex = FindMemberIndex(deadMember);
         if (deadIndex < 0)
         {
+            Debug.LogError($"[PartyManager2D] Dead member was not found in partyMembers. incoming={(deadMember != null ? deadMember.name : "null")}", this);
+            LogPartyAssignmentState();
+            EvaluateGameOverState("dead member not found");
             return;
         }
 
         _deadMembers[deadIndex] = true;
+        int aliveCount = LogAliveState("After death mark");
 
         if (deadIndex != _currentIndex)
         {
+            Debug.Log($"[PartyManager2D] Dead member slot {deadIndex + 1} was not active. currentIndex={_currentIndex + 1}", this);
+            if (aliveCount == 0)
+            {
+                TriggerGameOverIfNeeded("non-active member death resulted in zero alive members");
+            }
             return;
         }
 
         int nextIndex = FindFirstAliveMemberIndex(exceptIndex: deadIndex);
         if (nextIndex >= 0)
         {
+            Debug.Log($"[PartyManager2D] Switching to next alive member at slot {nextIndex + 1}.", this);
             ForceSwitchTo(nextIndex, ignoreCooldown: true);
             return;
         }
 
         _currentIndex = -1;
-
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.GameOver();
-        }
+        Debug.Log("[PartyManager2D] No alive members remain. Triggering GameOver.", this);
+        TriggerGameOverIfNeeded("active member death with no next member");
     }
 
     private void HandleSwitchInput()
@@ -421,7 +430,23 @@ public class PartyManager2D : MonoBehaviour
 
         for (int i = 0; i < partyMembers.Length; i++)
         {
-            if (partyMembers[i] == member)
+            GameObject partyMember = partyMembers[i];
+            if (partyMember == null)
+            {
+                continue;
+            }
+
+            if (partyMember == member)
+            {
+                return i;
+            }
+
+            if (member.transform.root != null && partyMember == member.transform.root.gameObject)
+            {
+                return i;
+            }
+
+            if (member.transform.IsChildOf(partyMember.transform) || partyMember.transform.IsChildOf(member.transform))
             {
                 return i;
             }
@@ -487,9 +512,77 @@ public class PartyManager2D : MonoBehaviour
         for (int i = 0; i < partyMembers.Length; i++)
         {
             GameObject member = partyMembers[i];
-            string memberName = member != null ? member.name : "null";
-            bool isActiveInHierarchy = member != null && member.activeInHierarchy;
-            Debug.Log($"[PartyManager2D] Slot {i + 1}: {memberName}, activeInHierarchy={isActiveInHierarchy}", this);
+            Debug.Log(BuildMemberStateLog("[PartyManager2D] Assignment", i, member), this);
+        }
+    }
+
+    private int LogAliveState(string context)
+    {
+        if (partyMembers == null)
+        {
+            return 0;
+        }
+
+        int aliveCount = 0;
+        for (int i = 0; i < partyMembers.Length; i++)
+        {
+            GameObject member = partyMembers[i];
+            Health health = member != null ? member.GetComponentInChildren<Health>(true) : null;
+            bool flagDead = _deadMembers != null && i < _deadMembers.Length && _deadMembers[i];
+            bool healthDead = health != null && health.IsDead;
+            bool isDead = flagDead || healthDead;
+            if (member != null && !isDead)
+            {
+                aliveCount++;
+            }
+
+            Debug.Log($"{BuildMemberStateLog($"[PartyManager2D][AliveState] {context}", i, member)} flagDead={flagDead} healthDead={healthDead}", this);
+        }
+
+        Debug.Log($"[PartyManager2D][AliveState] {context} aliveCount={aliveCount}", this);
+        return aliveCount;
+    }
+
+    private string BuildMemberStateLog(string prefix, int index, GameObject member)
+    {
+        Health health = member != null ? member.GetComponentInChildren<Health>(true) : null;
+        string memberName = member != null ? member.name : "null";
+        string healthName = health != null ? health.gameObject.name : "null";
+        string hp = health != null ? $"{health.CurrentHP}/{health.MaxHP}" : "n/a";
+        bool isDead = health != null && health.IsDead;
+        bool activeSelf = member != null && member.activeSelf;
+        bool activeInHierarchy = member != null && member.activeInHierarchy;
+
+        return $"{prefix} slot={index + 1} member={memberName} activeSelf={activeSelf} activeInHierarchy={activeInHierarchy} healthObject={healthName} hp={hp} isDead={isDead}";
+    }
+
+    private void EvaluateGameOverState(string context)
+    {
+        int aliveCount = LogAliveState(context);
+        if (aliveCount == 0)
+        {
+            TriggerGameOverIfNeeded($"{context} -> aliveCount zero");
+        }
+    }
+
+    private void TriggerGameOverIfNeeded(string reason)
+    {
+        if (_hasTriggeredGameOver)
+        {
+            Debug.Log($"[PartyManager2D] GameOver already triggered. Skip duplicate call. reason={reason}", this);
+            return;
+        }
+
+        _hasTriggeredGameOver = true;
+        Debug.Log($"[PartyManager2D] TriggerGameOverIfNeeded reason={reason}", this);
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.GameOver();
+        }
+        else
+        {
+            Debug.LogError("[PartyManager2D] GameManager.Instance is null. Cannot trigger GameOver.", this);
         }
     }
 

@@ -85,9 +85,6 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
     [Tooltip("히트스캔 최대 사거리 (유닛)")]
     [SerializeField] private float range = 20f;
 
-    [Tooltip("데미지를 줄 대상 레이어 (Enemy 등)")]
-    [SerializeField] private LayerMask targetLayer;
-
     [Tooltip("총알을 막는 벽 레이어. 0이면 관통.")]
     [SerializeField] private LayerMask wallLayer;
 
@@ -105,7 +102,6 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
     // Inspector — 오디오
     // ─────────────────────────────────────────────
     [Header("Audio")]
-    [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip fireSfx;
     [SerializeField, Range(0f, 1f)] private float fireSfxVolume = 0.9f;
 
@@ -157,11 +153,9 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
     // ─────────────────────────────────────────────
     private float _nextFireTime;
     private bool _isBurstActive;
-    private Camera _mainCamera;
 
     // 백스텝이 PlayerController2D.FixedUpdate와 충돌하지 않도록 참조 보관
     private Rigidbody2D _rb;
-    private PlayerController2D _controller;  // null-safe: 없어도 동작
     private BasePlayableCombat2D _primaryCombat; // Shared gauge, hit SFX, and hit stop owner.
     private Coroutine _hideTracerRoutine;
 

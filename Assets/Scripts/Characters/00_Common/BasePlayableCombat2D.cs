@@ -27,7 +27,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     [Header("Hit Detection")]
     [SerializeField] private Transform attackPoint;
     [SerializeField] private float heavyAttackRange = 1.4f;
-    [SerializeField] private LayerMask targetLayer;
+    [SerializeField] protected LayerMask targetLayer;
 
     [Header("Attack Definitions")]
     [SerializeField] private AttackDefinition combo1Attack = new AttackDefinition { coefficient = 0.90f };
@@ -66,7 +66,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     [SerializeField] private AudioClip[] heavySwingClips;
 
     [Header("Hit Audio")]
-    [SerializeField] private AudioSource audioSource;
+    [SerializeField] protected AudioSource audioSource;
     [SerializeField] private AudioClip gunHitSfx;
     [SerializeField] private AudioClip meleeHitSfx;
     [SerializeField, Range(0f, 1f)] private float hitSfxVolume = 0.9f;
@@ -125,13 +125,13 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     private float _attackPressStartTime;
     private float _nextComboAttackTime;
     private Vector2 _lastAimDirection = Vector2.right;
-    private Camera _mainCamera;
+    protected Camera _mainCamera;
     private bool _hasLoggedMissingAttackPoint;
     private Coroutine _hitStopRoutine;
     private Coroutine _attackSlowRoutine;
 
     private CameraFollow2D _cameraShake;
-    private PlayerController2D _controller;
+    protected PlayerController2D _controller;
 
     public float UltimateGauge => ultimateGauge;
     public float UltimateMax => ultimateMax;
@@ -156,6 +156,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         _baseAttackCooldown = attackCooldown;
         _mainCamera = Camera.main;
         hitAudioSource = hitAudioSource != null ? hitAudioSource : GetComponent<AudioSource>();
+        audioSource = audioSource != null ? audioSource : GetComponent<AudioSource>();
         ResolveAttackPoint();
 
         _cameraShake = Camera.main != null ? Camera.main.GetComponent<CameraFollow2D>() : null;

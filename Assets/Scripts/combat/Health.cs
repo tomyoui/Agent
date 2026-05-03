@@ -43,6 +43,7 @@ public class Health : MonoBehaviour, IDamageable
 
     public int MaxHP => maxHP;
     public int CurrentHP => currentHP;
+    public bool IsDead => _isDead;
 
     private SpriteRenderer _spriteRenderer;
     private Color _originalColor = Color.white;
@@ -124,6 +125,8 @@ public class Health : MonoBehaviour, IDamageable
         if (_isDead) return;
         _isDead = true;
 
+        Debug.Log($"[Health] Die() called for {gameObject.name}. root={transform.root.name}", this);
+
         // 진행 중인 피격 플래시 즉시 중단 — 사망 연출 중 색상 충돌 방지
         if (_hitFlashRoutine != null)
         {
@@ -182,7 +185,9 @@ public class Health : MonoBehaviour, IDamageable
         }
 
         // ── 4. 오브젝트 비활성화 + 파티 매니저에 사망 알림 ──────────────────
-        PartyManager2D.Instance?.OnMemberDied(gameObject);
+        GameObject deathOwner = transform.root != null ? transform.root.gameObject : gameObject;
+        Debug.Log($"[Health] DeathRoutine completed for {gameObject.name}. Notify PartyManager with owner={deathOwner.name}", this);
+        PartyManager2D.Instance?.OnMemberDied(deathOwner);
         gameObject.SetActive(false);
     }
 
