@@ -247,7 +247,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: DummyEnemy_v1 (2)
+      value: Enemy_Corrupted_Basic_C
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target
@@ -347,7 +347,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: DummyEnemy_v1 (1)
+      value: Enemy_Corrupted_Basic_B
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target
@@ -1038,7 +1038,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: DummyEnemy_v1 (3)
+      value: Enemy_Corrupted_Basic_D
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target
@@ -3399,7 +3399,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: DummyEnemy_v1
+      value: Enemy_Corrupted_Basic_A
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target

@@ -46,6 +46,15 @@ public class EnemyMelee2D : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (!IsValidTarget(target))
+        {
+            target = null;
+        }
+        else
+        {
+            target = NormalizeTarget(target);
+        }
+
         // 넉백 중: velocity를 절대 덮어쓰지 않고 그냥 return.
         // AddForce(Impulse)로 부여된 velocity를 물리 엔진이 직접 소멸시키도록 둬야 함.
         // 이 블록에 linearVelocity = zero를 넣으면 매 FixedUpdate마다 넉백이 즉시 취소됨.
@@ -107,10 +116,13 @@ public class EnemyMelee2D : MonoBehaviour
 
     private void ExecuteAttack()
     {
-        if (target == null)
+        if (!IsValidTarget(target))
         {
+            target = null;
             return;
         }
+
+        target = NormalizeTarget(target);
 
         EnsurePlayerLayerConfigured();
 
@@ -130,22 +142,68 @@ public class EnemyMelee2D : MonoBehaviour
         if (PartyManager2D.Instance != null)
         {
             GameObject current = PartyManager2D.Instance.CurrentMember;
-            target = current != null && IsInPlayerLayer(current) ? current.transform : null;
+            target = IsTargetCandidate(current) ? NormalizeTarget(current.transform) : null;
         }
         else if (target == null)
         {
             GameObject[] players = GameObject.FindGameObjectsWithTag(playerTag);
             for (int i = 0; i < players.Length; i++)
             {
-                if (players[i] != null && IsInPlayerLayer(players[i]))
+                if (IsTargetCandidate(players[i]))
                 {
-                    target = players[i].transform;
+                    target = NormalizeTarget(players[i].transform);
                     break;
                 }
             }
         }
 
         return target != null;
+    }
+
+    private bool IsValidTarget(Transform candidate)
+    {
+        if (candidate == null || !candidate.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        Health health = FindTargetHealth(candidate);
+        return health != null && !health.IsDead;
+    }
+
+    private bool IsTargetCandidate(GameObject candidate)
+    {
+        return candidate != null
+            && IsValidTarget(candidate.transform)
+            && IsInPlayerLayer(candidate);
+    }
+
+    private Health FindTargetHealth(Transform candidate)
+    {
+        if (candidate == null || !candidate.gameObject.activeInHierarchy)
+        {
+            return null;
+        }
+
+        Health health = candidate.GetComponent<Health>();
+        if (health != null)
+        {
+            return health;
+        }
+
+        health = candidate.GetComponentInParent<Health>(true);
+        if (health != null)
+        {
+            return health;
+        }
+
+        return candidate.GetComponentInChildren<Health>(true);
+    }
+
+    private Transform NormalizeTarget(Transform candidate)
+    {
+        Health health = FindTargetHealth(candidate);
+        return health != null ? health.transform.root : candidate;
     }
 
     private bool IsInPlayerLayer(GameObject candidate)
