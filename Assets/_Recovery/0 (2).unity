@@ -131,7 +131,6 @@ GameObject:
   - component: {fileID: 63079364}
   - component: {fileID: 63079363}
   - component: {fileID: 63079362}
-  - component: {fileID: 63079366}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -211,7 +210,7 @@ RectTransform:
   m_GameObject: {fileID: 63079361}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1135692292}
@@ -222,21 +221,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
---- !u!114 &63079366
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 63079361}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03626bff4fda5974bb8b7b8087f9b712, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameOverUI
-  panel: {fileID: 1135692291}
-  restartButton: {fileID: 828818705}
-  quitButton: {fileID: 2023359849}
 --- !u!1001 &89237955
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -247,7 +231,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: Enemy_Corrupted_Basic_C
+      value: DummyEnemy_v1 (2)
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target
@@ -347,7 +331,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: Enemy_Corrupted_Basic_B
+      value: DummyEnemy_v1 (1)
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target
@@ -435,6 +419,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1778383244}
   - {fileID: 678057603}
   - {fileID: 1614168024}
   - {fileID: 1384504820}
@@ -484,7 +469,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4fe9eb112d48a8d438607910b6848ffd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  gameOverUI: {fileID: 63079366}
+  gameOverUI: {fileID: 1135692293}
 --- !u!1 &438087420
 GameObject:
   m_ObjectHideFlags: 0
@@ -993,10 +978,10 @@ MonoBehaviour:
   - {fileID: 2145049391}
   - {fileID: 853127792}
   - {fileID: 1303137713}
-  standbyOffsetA: {x: -0.6, y: -0.4, z: 0}
-  standbyOffsetB: {x: 0.6, y: -0.4, z: 0}
   switchCooldown: 0.5
-  switchAnimDuration: 0.15
+  startingMemberIndex: 0
+  enableInputDebugLog: 0
+  debugLogInterval: 0.5
 --- !u!114 &680266095
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1037,7 +1022,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: Enemy_Corrupted_Basic_D
+      value: DummyEnemy_v1 (3)
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target
@@ -1322,6 +1307,7 @@ GameObject:
   m_Component:
   - component: {fileID: 853127801}
   - component: {fileID: 853127800}
+  - component: {fileID: 853127799}
   - component: {fileID: 853127798}
   - component: {fileID: 853127797}
   - component: {fileID: 853127796}
@@ -1450,7 +1436,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
   maxHP: 30
   currentHP: 30
@@ -1507,7 +1493,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcc2f88b175eec94bb98fbe589cdfdbe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KasiaCombat2D
-  maxUltimateGauge: 20
+  ultimateMax: 20
   basicAttackHitGain: 1
   skillHitGain: 4
   attackPoint: {fileID: 490184800}
@@ -1531,32 +1517,6 @@ MonoBehaviour:
     coefficient: 1.8
     category: 0
     attribute: 0
-  ultimateAttackDef:
-    coefficient: 4
-    category: 3
-    attribute: 0
-  ultimateRange: 2.5
-  ultimateAngle: 360
-  ultimateKnockbackForce: 15
-  ultimateBuffDuration: 12
-  ultimateAttackMultiplier: 1.5
-  ultimateAction:
-    m_Name: Ultimate
-    m_Type: 1
-    m_ExpectedControlType: 
-    m_Id: 0f59b644-00d1-40ae-93e3-a14520271980
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: c793abf0-123e-4eef-8b1d-eb36319c0954
-      m_Path: <Keyboard>/q
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Ultimate
-      m_Flags: 0
-    m_Flags: 0
   combo1Range: 0.9
   combo1Angle: 70
   combo2Range: 1.1
@@ -1627,6 +1587,36 @@ MonoBehaviour:
   dashSpeed: 12
   dashDuration: 0.15
   dashCooldown: 0.5
+--- !u!114 &853127799
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 853127792}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
+  m_Actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_NotificationBehavior: 0
+  m_UIInputModule: {fileID: 0}
+  m_DeviceLostEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_DeviceRegainedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ControlsChangedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ActionEvents: []
+  m_NeverAutoSwitchControlSchemes: 0
+  m_DefaultControlScheme: 
+  m_DefaultActionMap: 
+  m_SplitScreenIndex: -1
+  m_Camera: {fileID: 0}
 --- !u!50 &853127800
 Rigidbody2D:
   serializedVersion: 5
@@ -1837,13 +1827,14 @@ GameObject:
   - component: {fileID: 1135692292}
   - component: {fileID: 1135692295}
   - component: {fileID: 1135692294}
+  - component: {fileID: 1135692293}
   m_Layer: 0
   m_Name: GameOverPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1135692292
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1866,6 +1857,21 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1135692293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1135692291}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03626bff4fda5974bb8b7b8087f9b712, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameOverUI
+  panel: {fileID: 1135692291}
+  restartButton: {fileID: 828818705}
+  quitButton: {fileID: 2023359849}
 --- !u!114 &1135692294
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1914,6 +1920,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1303137722}
   - component: {fileID: 1303137721}
+  - component: {fileID: 1303137720}
   - component: {fileID: 1303137719}
   - component: {fileID: 1303137718}
   - component: {fileID: 1303137717}
@@ -2042,7 +2049,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
   maxHP: 30
   currentHP: 30
@@ -2099,7 +2106,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa82dd544ece7f34eb4f7c903b73f34e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AgnieszkaCombat2D
-  maxUltimateGauge: 20
+  ultimateMax: 20
   basicAttackHitGain: 1
   skillHitGain: 4
   attackPoint: {fileID: 1978893144}
@@ -2123,32 +2130,6 @@ MonoBehaviour:
     coefficient: 1.8
     category: 0
     attribute: 0
-  ultimateAttackDef:
-    coefficient: 4
-    category: 3
-    attribute: 0
-  ultimateRange: 2.5
-  ultimateAngle: 360
-  ultimateKnockbackForce: 15
-  ultimateBuffDuration: 12
-  ultimateAttackMultiplier: 1.5
-  ultimateAction:
-    m_Name: Ultimate
-    m_Type: 1
-    m_ExpectedControlType: 
-    m_Id: 0f59b644-00d1-40ae-93e3-a14520271980
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: c793abf0-123e-4eef-8b1d-eb36319c0954
-      m_Path: <Keyboard>/q
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Ultimate
-      m_Flags: 0
-    m_Flags: 0
   combo1Range: 0.9
   combo1Angle: 70
   combo2Range: 1.1
@@ -2219,6 +2200,36 @@ MonoBehaviour:
   dashSpeed: 12
   dashDuration: 0.15
   dashCooldown: 0.5
+--- !u!114 &1303137720
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1303137713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
+  m_Actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_NotificationBehavior: 0
+  m_UIInputModule: {fileID: 0}
+  m_DeviceLostEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_DeviceRegainedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ControlsChangedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ActionEvents: []
+  m_NeverAutoSwitchControlSchemes: 0
+  m_DefaultControlScheme: 
+  m_DefaultActionMap: 
+  m_SplitScreenIndex: -1
+  m_Camera: {fileID: 0}
 --- !u!50 &1303137721
 Rigidbody2D:
   serializedVersion: 5
@@ -2499,6 +2510,57 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HealthBarUI
   targetHealth: {fileID: 853127795}
   fillTransform: {fileID: 651414074}
+--- !u!1 &1778383242
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1778383244}
+  - component: {fileID: 1778383243}
+  m_Layer: 0
+  m_Name: EnemySpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1778383243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1778383242}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6cf98c89e4f14a7698406150cae7553, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
+  enemyPrefab: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
+  spawnPoints:
+  - {fileID: 678057603}
+  - {fileID: 1614168024}
+  - {fileID: 1384504820}
+  spawnInterval: 2
+  maxAliveEnemies: 3
+--- !u!4 &1778383244
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1778383242}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 334543269}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1806228268
 GameObject:
   m_ObjectHideFlags: 0
@@ -3347,7 +3409,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 121592892801364407, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: m_Name
-      value: Enemy_Corrupted_Basic_A
+      value: DummyEnemy_v1
       objectReference: {fileID: 0}
     - target: {fileID: 3003881260842679351, guid: 9933f17de843f4c11ad1cbfd562ea82b, type: 3}
       propertyPath: target
@@ -3416,6 +3478,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2145049400}
   - component: {fileID: 2145049398}
+  - component: {fileID: 2145049397}
   - component: {fileID: 2145049396}
   - component: {fileID: 2145049395}
   - component: {fileID: 2145049394}
@@ -3544,7 +3607,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a708b29da0d585418ddded10418f7a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArrivalCombat2D
-  maxUltimateGauge: 20
+  ultimateMax: 20
   basicAttackHitGain: 1
   skillHitGain: 4
   attackPoint: {fileID: 819600411}
@@ -3568,32 +3631,6 @@ MonoBehaviour:
     coefficient: 1.8
     category: 0
     attribute: 0
-  ultimateAttackDef:
-    coefficient: 4
-    category: 3
-    attribute: 0
-  ultimateRange: 2.5
-  ultimateAngle: 360
-  ultimateKnockbackForce: 15
-  ultimateBuffDuration: 12
-  ultimateAttackMultiplier: 2
-  ultimateAction:
-    m_Name: Ultimate
-    m_Type: 1
-    m_ExpectedControlType: 
-    m_Id: 0f59b644-00d1-40ae-93e3-a14520271980
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: c793abf0-123e-4eef-8b1d-eb36319c0954
-      m_Path: <Keyboard>/q
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Ultimate
-      m_Flags: 0
-    m_Flags: 0
   combo1Range: 0.9
   combo1Angle: 70
   combo2Range: 1.1
@@ -3651,6 +3688,9 @@ MonoBehaviour:
   onHeavyAttack:
     m_PersistentCalls:
       m_Calls: []
+  ultimateBuffDuration: 12
+  ultimateAttackMultiplier: 2
+  ultimateCooldownMultiplier: 0.5
 --- !u!114 &2145049396
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3668,6 +3708,36 @@ MonoBehaviour:
   dashSpeed: 12
   dashDuration: 0.15
   dashCooldown: 0.5
+--- !u!114 &2145049397
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2145049391}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
+  m_Actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_NotificationBehavior: 0
+  m_UIInputModule: {fileID: 0}
+  m_DeviceLostEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_DeviceRegainedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ControlsChangedEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  m_ActionEvents: []
+  m_NeverAutoSwitchControlSchemes: 0
+  m_DefaultControlScheme: 
+  m_DefaultActionMap: 
+  m_SplitScreenIndex: -1
+  m_Camera: {fileID: 0}
 --- !u!50 &2145049398
 Rigidbody2D:
   serializedVersion: 5
@@ -3784,9 +3854,83 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 684f6cd177a7c8e468be7cf287a80ef8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerRangedAttack2D
-  maxUltimateGauge: 20
+  ultimateMax: 20
   basicAttackHitGain: 1
   skillHitGain: 4
+  attackPoint: {fileID: 0}
+  heavyAttackRange: 1.4
+  targetLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  combo1Attack:
+    coefficient: 0.9
+    category: 0
+    attribute: 0
+  combo2Attack:
+    coefficient: 1.05
+    category: 0
+    attribute: 0
+  combo3Attack:
+    coefficient: 1.5
+    category: 0
+    attribute: 0
+  heavyAttackDef:
+    coefficient: 1.8
+    category: 0
+    attribute: 0
+  combo1Range: 0.9
+  combo1Angle: 70
+  combo2Range: 1.1
+  combo2Angle: 95
+  combo3Range: 1.3
+  combo3Angle: 120
+  maxComboStep: 3
+  comboInputWindow: 0.35
+  comboResetDelay: 0.8
+  attackCooldown: 0.25
+  heavyHoldThreshold: 0.4
+  heavyAttackAngle: 110
+  attackPointDistance: 0.9
+  hitAudioSource: {fileID: 0}
+  hitClips: []
+  heavySwingClips: []
+  audioSource: {fileID: 2145049403}
+  gunHitSfx: {fileID: 0}
+  meleeHitSfx: {fileID: 0}
+  hitSfxVolume: 0.9
+  hitStopDuration: 0.05
+  combo1HitStop: 0.03
+  combo2HitStop: 0.05
+  combo3HitStop: 0.1
+  heavyHitStop: 0.12
+  knockbackForce: 5
+  knockbackDuration: 0.2
+  combo1KnockbackForce: 4
+  combo2KnockbackForce: 6
+  combo3KnockbackForce: 9
+  heavyKnockbackForce: 12
+  combo1ShakeIntensity: 0.04
+  combo2ShakeIntensity: 0.07
+  combo3ShakeIntensity: 0.12
+  heavyShakeIntensity: 0.15
+  combo1StaggerDuration: 0.12
+  combo2StaggerDuration: 0.18
+  combo3StaggerDuration: 0.26
+  heavyStaggerDuration: 0.35
+  combo1SlowMultiplier: 0.35
+  combo2SlowMultiplier: 0.28
+  combo3SlowMultiplier: 0.18
+  heavySlowMultiplier: 0.08
+  combo1SlowDuration: 0.1
+  combo2SlowDuration: 0.13
+  combo3SlowDuration: 0.17
+  heavySlowDuration: 0.24
+  onComboAttack:
+    m_PersistentCalls:
+      m_Calls: []
+  onHeavyAttack:
+    m_PersistentCalls:
+      m_Calls: []
   eSkillAttackDef:
     coefficient: 1.1
     category: 2
@@ -3812,15 +3956,11 @@ MonoBehaviour:
   burstCount: 4
   burstInterval: 0.08
   range: 20
-  targetLayer:
-    serializedVersion: 2
-    m_Bits: 8
   wallLayer:
     serializedVersion: 2
     m_Bits: 0
   firePoint: {fileID: 0}
   cooldown: 0.62
-  audioSource: {fileID: 2145049403}
   fireSfx: {fileID: 8300000, guid: 776e9c03e0f6f4836b7c42666fa9cf84, type: 3}
   fireSfxVolume: 0.88
   gunHitStopDuration: 0.02

@@ -12,7 +12,7 @@ public class GameOverUIBuilder : Editor
         GameObject existing = GameObject.Find("GameOverPanel");
         if (existing != null) DestroyImmediate(existing);
 
-        Canvas canvas = FindObjectOfType<Canvas>();
+        Canvas canvas = FindFirstObjectByType<Canvas>();
         if (canvas == null) { Debug.LogError("Canvas 없음"); return; }
 
         // GameOverPanel 없으면 새로 생성

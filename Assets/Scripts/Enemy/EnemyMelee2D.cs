@@ -16,6 +16,9 @@ public class EnemyMelee2D : MonoBehaviour
     [Header("Chase")]
     [Tooltip("플레이어 추적 이동 속도")]
     [SerializeField] private float moveSpeed = 2.5f;
+    [SerializeField] private LayerMask enemyLayer;
+    [SerializeField] private float separationRadius = 0.6f;
+    [SerializeField] private float separationWeight = 0.75f;
 
     [Header("Attack")]
     [Tooltip("공격이 시작되는 거리")]
@@ -99,13 +102,42 @@ public class EnemyMelee2D : MonoBehaviour
 
         if (distanceToTarget > attackRange)
         {
-            Vector2 moveDir = toTarget.normalized;
+            Vector2 desiredDirection = toTarget.normalized;
+            Vector2 separation = CalculateSeparation();
+            Vector2 moveDir = (desiredDirection + separation * separationWeight).normalized;
             _rb.linearVelocity = moveDir * moveSpeed;
             return;
         }
 
         _rb.linearVelocity = Vector2.zero;
         StartAttackWindup();
+    }
+
+    private Vector2 CalculateSeparation()
+    {
+        Collider2D[] nearbyEnemies = Physics2D.OverlapCircleAll(transform.position, separationRadius, enemyLayer);
+        Vector2 separation = Vector2.zero;
+
+        for (int i = 0; i < nearbyEnemies.Length; i++)
+        {
+            Collider2D enemy = nearbyEnemies[i];
+            if (enemy == null || enemy.transform == transform || enemy.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            Vector2 awayFromEnemy = (Vector2)transform.position - (Vector2)enemy.transform.position;
+            float distance = awayFromEnemy.magnitude;
+            if (distance <= 0.0001f)
+            {
+                continue;
+            }
+
+            float closeness = Mathf.Clamp01((separationRadius - distance) / separationRadius);
+            separation += awayFromEnemy.normalized * closeness;
+        }
+
+        return separation;
     }
 
     private void StartAttackWindup()

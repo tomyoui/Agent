@@ -13,6 +13,7 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] private List<Transform> spawnPoints = new List<Transform>();
 
     [Header("Spawn Rules")]
+    [SerializeField] private bool spawnOnStart = false;
     [Tooltip("적 생성 간격 (초)")]
     [SerializeField] private float spawnInterval = 2f;
     [Tooltip("동시에 살아있을 수 있는 최대 적 수")]
@@ -24,6 +25,11 @@ public class EnemySpawner : MonoBehaviour
 
     private void OnEnable()
     {
+        if (!spawnOnStart)
+        {
+            return;
+        }
+
         _spawnLoopRoutine = StartCoroutine(SpawnLoop());
     }
 
