@@ -129,6 +129,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     private bool _hasLoggedMissingAttackPoint;
     private Coroutine _hitStopRoutine;
     private Coroutine _attackSlowRoutine;
+    private Coroutine _temporaryHeavyAttackFeedbackRoutine;
 
     private CameraFollow2D _cameraShake;
     protected PlayerController2D _controller;
@@ -391,11 +392,29 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         _currentComboStep = 0;
         _lastComboTime = 0f;
 
+        // Debug/Temporary: remove when proper heavy attack animation is added.
+        Debug.Log($"[HeavyAttack] {gameObject.name} 강공격 발동", this);
+        if (_temporaryHeavyAttackFeedbackRoutine != null)
+        {
+            StopCoroutine(_temporaryHeavyAttackFeedbackRoutine);
+        }
+
+        _temporaryHeavyAttackFeedbackRoutine = StartCoroutine(TemporaryHeavyAttackScaleFeedback());
+
         PlayRandomHeavySwingSound();
         int heavyDmg = CalculateSkillDamage(heavyAttackDef, fallbackFlatAttack: 14);
         ApplyAttackSlow(comboStep: 0);
         PerformAttack(heavyAttackRange, heavyDmg, heavyAttackAngle, heavyAttackDef.attribute, "Heavy", 0);
         onHeavyAttack?.Invoke();
+    }
+
+    private IEnumerator TemporaryHeavyAttackScaleFeedback()
+    {
+        Vector3 originalScale = transform.localScale;
+        transform.localScale = originalScale * 1.15f;
+        yield return new WaitForSecondsRealtime(0.08f);
+        transform.localScale = originalScale;
+        _temporaryHeavyAttackFeedbackRoutine = null;
     }
 
     private void PerformAttack(float range, int damage, float attackAngle, CombatAttribute attribute, string attackType, int comboStep = 1)

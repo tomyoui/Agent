@@ -20,6 +20,9 @@ public class PartyManager2D : MonoBehaviour
     [SerializeField, Min(0f)] private float switchCooldown = 0.5f;
     [SerializeField] private int startingMemberIndex;
 
+    [Header("Attack Input")]
+    [SerializeField, Min(0f)] private float heavyAttackInputThreshold = 0.35f;
+
     [Header("Debug")]
     [SerializeField] private bool enableInputDebugLog;
     [SerializeField, Min(0.1f)] private float debugLogInterval = 0.5f;
@@ -29,6 +32,9 @@ public class PartyManager2D : MonoBehaviour
     private bool[] _deadMembers;
     private float _nextDebugLogTime;
     private bool _hasTriggeredGameOver;
+    private bool _isAttackPressPending;
+    private float _attackPressStartTime;
+    private BasePlayableCombat2D _attackPressCombat;
 
     public int CurrentIndex => _currentIndex;
 
@@ -223,15 +229,22 @@ public class PartyManager2D : MonoBehaviour
 
         if (combat != null)
         {
-            if (WasAttackPressed())
+            if (WasMouseAttackPressed())
             {
+                _isAttackPressPending = true;
+                _attackPressStartTime = Time.time;
+                _attackPressCombat = combat;
                 combat.RequestHeavyAttackStart();
-                combat.RequestAttack();
             }
 
-            if (WasAttackReleased())
+            if (WasMouseAttackReleased())
             {
-                combat.RequestHeavyAttackRelease();
+                ResolveMouseAttackRelease(current);
+            }
+
+            if (WasKeyboardAttackPressed())
+            {
+                combat.RequestAttack();
             }
 
         }
@@ -303,18 +316,44 @@ public class PartyManager2D : MonoBehaviour
         return Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame;
     }
 
-    private bool WasAttackPressed()
+    private bool WasMouseAttackPressed()
     {
-        bool mousePressed = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
-        bool enterPressed = Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame;
-        return mousePressed || enterPressed;
+        return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
     }
 
-    private bool WasAttackReleased()
+    private bool WasMouseAttackReleased()
     {
-        bool mouseReleased = Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame;
-        bool enterReleased = Keyboard.current != null && Keyboard.current.enterKey.wasReleasedThisFrame;
-        return mouseReleased || enterReleased;
+        return Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame;
+    }
+
+    private bool WasKeyboardAttackPressed()
+    {
+        return Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame;
+    }
+
+    private void ResolveMouseAttackRelease(GameObject current)
+    {
+        if (!_isAttackPressPending || _attackPressCombat == null)
+        {
+            _isAttackPressPending = false;
+            _attackPressCombat = null;
+            return;
+        }
+
+        float heldTime = Time.time - _attackPressStartTime;
+        BasePlayableCombat2D pressedCombat = _attackPressCombat;
+        _isAttackPressPending = false;
+        _attackPressCombat = null;
+
+        if (heldTime >= heavyAttackInputThreshold)
+        {
+            Debug.Log($"[PartyManager2D] Heavy Attack Release: {current.name} held={heldTime:0.00}s", current);
+            pressedCombat.RequestHeavyAttackRelease();
+            return;
+        }
+
+        Debug.Log($"[PartyManager2D] Short Click Attack: {current.name} held={heldTime:0.00}s", current);
+        pressedCombat.RequestAttack();
     }
 
     private bool WasSkillPressed()

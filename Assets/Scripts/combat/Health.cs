@@ -37,6 +37,9 @@ public class Health : MonoBehaviour, IDamageable
     [SerializeField] private AudioClip deathSfx;
     [SerializeField, Range(0f, 1f)] private float deathSfxVolume = 1f;
 
+    [Header("Party Notification")]
+    [SerializeField] private bool notifyPartyManagerOnDeath;
+
     // deathSfx가 없을 때 재생할 프로토타입 fallback 클립.
     // static: 씬 내 모든 Health 인스턴스가 공유 — 최초 1회만 생성.
     private static AudioClip _fallbackDeathSfx;
@@ -185,9 +188,13 @@ public class Health : MonoBehaviour, IDamageable
         }
 
         // ── 4. 오브젝트 비활성화 + 파티 매니저에 사망 알림 ──────────────────
-        GameObject deathOwner = transform.root != null ? transform.root.gameObject : gameObject;
-        Debug.Log($"[Health] DeathRoutine completed for {gameObject.name}. Notify PartyManager with owner={deathOwner.name}", this);
-        PartyManager2D.Instance?.OnMemberDied(deathOwner);
+        if (notifyPartyManagerOnDeath)
+        {
+            GameObject deathOwner = transform.root != null ? transform.root.gameObject : gameObject;
+            Debug.Log($"[Health] DeathRoutine completed for {gameObject.name}. Notify PartyManager with owner={deathOwner.name}", this);
+            PartyManager2D.Instance?.OnMemberDied(deathOwner);
+        }
+
         gameObject.SetActive(false);
     }
 

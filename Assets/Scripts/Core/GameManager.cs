@@ -22,8 +22,25 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    private void OnEnable()
+    {
+        if (Instance == this)
+        {
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (Instance == this)
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+    }
+
     private void Start()
     {
+        ResolveGameOverUI();
         if (gameOverUI != null)
         {
             gameOverUI.Hide();
@@ -38,6 +55,7 @@ public class GameManager : MonoBehaviour
     {
         Debug.Log("[GameManager] GameOver() invoked.", this);
         Time.timeScale = 0f;
+        ResolveGameOverUI();
         if (gameOverUI != null)
         {
             Debug.Log($"[GameManager] Showing GameOverUI component on {gameOverUI.gameObject.name}.", this);
@@ -59,5 +77,24 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         if (gameOverUI != null) gameOverUI.Hide();
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        ResolveGameOverUI();
+        if (gameOverUI != null)
+        {
+            gameOverUI.Hide();
+        }
+    }
+
+    private void ResolveGameOverUI()
+    {
+        if (gameOverUI != null)
+        {
+            return;
+        }
+
+        gameOverUI = FindFirstObjectByType<GameOverUI>(FindObjectsInactive.Include);
     }
 }
