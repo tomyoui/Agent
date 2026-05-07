@@ -46,6 +46,7 @@ public class Health : MonoBehaviour, IDamageable
 
     public int MaxHP => maxHP;
     public int CurrentHP => currentHP;
+    public int CurrentHp => currentHP;
     public bool IsDead => _isDead;
 
     private SpriteRenderer _spriteRenderer;

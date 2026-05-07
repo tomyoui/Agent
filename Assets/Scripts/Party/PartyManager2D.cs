@@ -135,8 +135,20 @@ public class PartyManager2D : MonoBehaviour
 
     private void Update()
     {
+        if (_hasTriggeredGameOver)
+        {
+            return;
+        }
+
         if (_currentIndex < 0)
         {
+            return;
+        }
+
+        SyncDeadMemberFlagsFromHealth();
+        if (IsMemberDead(_currentIndex))
+        {
+            OnMemberDied(CurrentMember);
             return;
         }
 
@@ -156,7 +168,7 @@ public class PartyManager2D : MonoBehaviour
             return;
         }
 
-        _deadMembers[deadIndex] = true;
+        MarkMemberDead(deadIndex);
         int aliveCount = LogAliveState("After death mark");
 
         if (deadIndex != _currentIndex)
@@ -368,8 +380,22 @@ public class PartyManager2D : MonoBehaviour
 
     private void TrySwitchTo(int targetIndex)
     {
+        if (_hasTriggeredGameOver)
+        {
+            return;
+        }
+
         if (Time.time < _nextSwitchTime)
         {
+            return;
+        }
+
+        if (IsValidIndex(targetIndex) && IsMemberDead(targetIndex))
+        {
+            GameObject targetMember = partyMembers[targetIndex];
+            string memberName = targetMember != null ? targetMember.name : "null";
+            Debug.Log($"[PartyManager2D] Cannot switch to dead member: {memberName}", targetMember);
+            EvaluateGameOverState("attempted switch to dead member");
             return;
         }
 
@@ -378,6 +404,11 @@ public class PartyManager2D : MonoBehaviour
 
     private void ForceSwitchTo(int targetIndex, bool ignoreCooldown)
     {
+        if (_hasTriggeredGameOver)
+        {
+            return;
+        }
+
         if (!CanSwitchTo(targetIndex))
         {
             return;
@@ -513,12 +544,60 @@ public class PartyManager2D : MonoBehaviour
     {
         return IsValidIndex(index) &&
                partyMembers[index] != null &&
-               (_deadMembers == null || !_deadMembers[index]);
+               !IsMemberDead(index);
     }
 
     private bool IsValidIndex(int index)
     {
         return partyMembers != null && index >= 0 && index < partyMembers.Length;
+    }
+
+    private void SyncDeadMemberFlagsFromHealth()
+    {
+        if (partyMembers == null || _deadMembers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < partyMembers.Length && i < _deadMembers.Length; i++)
+        {
+            Health health = GetMemberHealth(i);
+            if (health != null && health.IsDead)
+            {
+                _deadMembers[i] = true;
+            }
+        }
+    }
+
+    private void MarkMemberDead(int index)
+    {
+        if (_deadMembers != null && index >= 0 && index < _deadMembers.Length)
+        {
+            _deadMembers[index] = true;
+        }
+    }
+
+    private bool IsMemberDead(int index)
+    {
+        if (!IsValidIndex(index) || partyMembers[index] == null)
+        {
+            return true;
+        }
+
+        Health health = GetMemberHealth(index);
+        bool flagDead = _deadMembers != null && index < _deadMembers.Length && _deadMembers[index];
+        bool healthDead = health != null && health.IsDead;
+        return flagDead || healthDead;
+    }
+
+    private Health GetMemberHealth(int index)
+    {
+        if (!IsValidIndex(index) || partyMembers[index] == null)
+        {
+            return null;
+        }
+
+        return partyMembers[index].GetComponentInChildren<Health>(true);
     }
 
     private void WarnAboutConflictingComponents()
