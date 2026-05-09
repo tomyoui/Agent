@@ -5,6 +5,9 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class EnemyMelee2D : MonoBehaviour
 {
+    [Header("Data")]
+    [SerializeField] private EnemyData enemyData;
+
     [Header("Target")]
     [Tooltip("추적할 대상 Transform (미할당 시 playerTag로 자동 탐색)")]
     private Transform target;
@@ -40,11 +43,27 @@ public class EnemyMelee2D : MonoBehaviour
 
     private void Awake()
     {
+        ApplyEnemyData();
+
         _rb = GetComponent<Rigidbody2D>();
         _knockbackReceiver = GetComponent<KnockbackReceiver2D>();
         EnsurePlayerLayerConfigured();
         target = null;
         ResolveTarget();
+    }
+
+    private void ApplyEnemyData()
+    {
+        if (enemyData == null)
+        {
+            return;
+        }
+
+        attackDamage = enemyData.AttackDamage;
+        moveSpeed = enemyData.MoveSpeed;
+        attackRange = enemyData.AttackRange;
+        attackWindup = enemyData.AttackWindup;
+        attackCooldown = enemyData.AttackCooldown;
     }
 
     private void FixedUpdate()

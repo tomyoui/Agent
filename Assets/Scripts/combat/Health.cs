@@ -4,6 +4,9 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class Health : MonoBehaviour, IDamageable
 {
+    [Header("Data")]
+    [SerializeField] private EnemyData enemyData;
+
     [Header("Health")]
     [Tooltip("최대 HP")]
     [SerializeField] private int maxHP = 30;
@@ -59,6 +62,8 @@ public class Health : MonoBehaviour, IDamageable
 
     private void Awake()
     {
+        ApplyEnemyData();
+
         if (maxHP < 1) maxHP = 1;
         if (currentHP <= 0 || currentHP > maxHP) currentHP = maxHP;
 
@@ -82,6 +87,20 @@ public class Health : MonoBehaviour, IDamageable
         {
             _fallbackDeathSfx = CreateFallbackDeathSfx();
         }
+    }
+
+    private void ApplyEnemyData()
+    {
+        if (enemyData == null)
+        {
+            return;
+        }
+
+        maxHP = enemyData.MaxHP;
+        deathVfxPrefab = enemyData.DeathVfxPrefab;
+        deathVfxLifetime = enemyData.DeathVfxLifetime;
+        deathSfx = enemyData.DeathSfx;
+        deathSfxVolume = enemyData.DeathSfxVolume;
     }
 
     public void TakeDamage(int damage, CombatAttribute attribute = CombatAttribute.Justice)

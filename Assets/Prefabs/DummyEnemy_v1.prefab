@@ -182,16 +182,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c59ed0d9f0572ba408be8d533c162f19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Health
+  enemyData: {fileID: 11400000, guid: fe6a34399fbfe78488ce9d1c313fddcd, type: 2}
   maxHP: 500
   currentHP: 0
   hitFlashDuration: 0.08
   hitFlashColor: {r: 1, g: 0, b: 0, a: 1}
   damageNumberPrefab: {fileID: 5673047605395126464, guid: e6b8d420ac676463ea155ca35fb2e929, type: 3}
+  deathDuration: 0.3
+  deathScaleMultiplier: 1.3
   deathVfxPrefab: {fileID: 0}
   deathVfxLifetime: 0.5
   deathAudioSource: {fileID: 0}
   deathSfx: {fileID: 0}
   deathSfxVolume: 1
+  notifyPartyManagerOnDeath: 0
 --- !u!114 &3003881260842679351
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -204,12 +208,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22bdf4c85b2d840aabf95bf2e7725f5d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMelee2D
-  target: {fileID: 0}
+  enemyData: {fileID: 11400000, guid: fe6a34399fbfe78488ce9d1c313fddcd, type: 2}
   playerTag: Player
   playerLayer:
     serializedVersion: 2
     m_Bits: 64
   moveSpeed: 2.5
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  separationRadius: 0.6
+  separationWeight: 0.75
   attackRange: 1.2
   attackWindup: 0.2
   attackCooldown: 1
