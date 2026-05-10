@@ -713,6 +713,12 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     private void ApplyAttackSlow(int comboStep)
     {
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+        {
+            Debug.Log($"[{GetType().Name}] 비활성 상태라 공격 슬로우 코루틴을 시작하지 않습니다: {gameObject.name}", this);
+            return;
+        }
+
         if (_controller == null)
         {
             return;

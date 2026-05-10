@@ -218,9 +218,11 @@ public class PartyManager2D : MonoBehaviour
     private void RouteActiveMemberInput()
     {
         GameObject current = CurrentMember;
-        if (current == null)
+        if (current == null || !current.activeInHierarchy)
         {
             MaybeLogInputDebug(Vector2.zero, null, null);
+            _isAttackPressPending = false;
+            _attackPressCombat = null;
             return;
         }
 
@@ -239,7 +241,7 @@ public class PartyManager2D : MonoBehaviour
             }
         }
 
-        if (combat != null)
+        if (combat != null && combat.isActiveAndEnabled && combat.gameObject.activeInHierarchy)
         {
             if (WasMouseAttackPressed())
             {
@@ -345,6 +347,14 @@ public class PartyManager2D : MonoBehaviour
 
     private void ResolveMouseAttackRelease(GameObject current)
     {
+        if (current == null || !current.activeInHierarchy)
+        {
+            Debug.Log("[PartyManager2D] 비활성 캐릭터 대상 공격 입력 해제 무시", this);
+            _isAttackPressPending = false;
+            _attackPressCombat = null;
+            return;
+        }
+
         if (!_isAttackPressPending || _attackPressCombat == null)
         {
             _isAttackPressPending = false;
@@ -356,6 +366,12 @@ public class PartyManager2D : MonoBehaviour
         BasePlayableCombat2D pressedCombat = _attackPressCombat;
         _isAttackPressPending = false;
         _attackPressCombat = null;
+
+        if (pressedCombat == null || !pressedCombat.isActiveAndEnabled || !pressedCombat.gameObject.activeInHierarchy)
+        {
+            Debug.Log("[PartyManager2D] 비활성 전투 컴포넌트의 공격 입력 해제 무시", this);
+            return;
+        }
 
         if (heldTime >= heavyAttackInputThreshold)
         {

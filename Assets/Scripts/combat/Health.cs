@@ -18,8 +18,12 @@ public class Health : MonoBehaviour, IDamageable
     [SerializeField] private float hitFlashDuration = 0.08f;
     [Tooltip("피격 플래시 색상")]
     [SerializeField] private Color hitFlashColor = Color.red;
+    [Tooltip("플레이어 Health일 때 피격 후 무적 시간을 사용할지 여부")]
+    [SerializeField] private bool usePlayerInvulnerability = true;
     [Tooltip("플레이어가 피격된 뒤 추가 데미지를 무시하는 시간 (초)")]
-    [SerializeField] private float playerInvulnerabilityDuration = 0.6f;
+    [SerializeField, Min(0f)] private float playerInvulnerabilityDuration = 0.75f;
+    [Tooltip("플레이어 무적 중 SpriteRenderer 깜빡임 간격 (초)")]
+    [SerializeField, Min(0.01f)] private float playerInvulnerabilityBlinkInterval = 0.08f;
 
     [Header("Damage Number")]
     [Tooltip("데미지 숫자 프리팹. 미할당 시 경고 로그만 출력하고 다른 피드백은 정상 동작.")]
@@ -58,6 +62,7 @@ public class Health : MonoBehaviour, IDamageable
     private Color _originalColor = Color.white;
     private Vector3 _originalScale;
     private Coroutine _hitFlashRoutine;
+    private Coroutine _invulnerabilityBlinkRoutine;
     private bool _isPlayerHealth;
     private float _nextDamageAllowedTime;
 
@@ -119,16 +124,17 @@ public class Health : MonoBehaviour, IDamageable
             return;
         }
 
-        if (_isPlayerHealth && Time.time < _nextDamageAllowedTime)
+        if (usePlayerInvulnerability && _isPlayerHealth && Time.time < _nextDamageAllowedTime)
         {
             Debug.Log($"[Health] {gameObject.name} 피격 후 무적 중 데미지 무시: {damage}", this);
             return;
         }
 
         currentHP = Mathf.Max(0, currentHP - damage);
-        if (_isPlayerHealth)
+        if (usePlayerInvulnerability && _isPlayerHealth)
         {
             _nextDamageAllowedTime = Time.time + Mathf.Max(0f, playerInvulnerabilityDuration);
+            StartInvulnerabilityBlink();
         }
 
         // 속성별 반응 분기.
@@ -172,6 +178,8 @@ public class Health : MonoBehaviour, IDamageable
             _hitFlashRoutine = null;
             if (_spriteRenderer != null) _spriteRenderer.color = _originalColor;
         }
+
+        StopInvulnerabilityBlink();
 
         StartCoroutine(DeathRoutine());
     }
@@ -282,8 +290,64 @@ public class Health : MonoBehaviour, IDamageable
         _hitFlashRoutine = null;
     }
 
+    private void StartInvulnerabilityBlink()
+    {
+        if (_spriteRenderer == null || !usePlayerInvulnerability || !_isPlayerHealth)
+        {
+            return;
+        }
+
+        if (_invulnerabilityBlinkRoutine != null)
+        {
+            StopCoroutine(_invulnerabilityBlinkRoutine);
+        }
+
+        _invulnerabilityBlinkRoutine = StartCoroutine(InvulnerabilityBlinkRoutine());
+    }
+
+    private void StopInvulnerabilityBlink()
+    {
+        if (_invulnerabilityBlinkRoutine != null)
+        {
+            StopCoroutine(_invulnerabilityBlinkRoutine);
+            _invulnerabilityBlinkRoutine = null;
+        }
+
+        if (_spriteRenderer != null)
+        {
+            _spriteRenderer.enabled = true;
+        }
+    }
+
+    private IEnumerator InvulnerabilityBlinkRoutine()
+    {
+        Debug.Log($"[Health] {gameObject.name} 피격 후 무적 깜빡임 시작", this);
+
+        while (!_isDead && Time.time < _nextDamageAllowedTime)
+        {
+            if (_spriteRenderer == null)
+            {
+                _invulnerabilityBlinkRoutine = null;
+                yield break;
+            }
+
+            _spriteRenderer.enabled = !_spriteRenderer.enabled;
+            yield return new WaitForSeconds(playerInvulnerabilityBlinkInterval);
+        }
+
+        if (_spriteRenderer != null)
+        {
+            _spriteRenderer.enabled = true;
+        }
+
+        _invulnerabilityBlinkRoutine = null;
+        Debug.Log($"[Health] {gameObject.name} 피격 후 무적 깜빡임 종료", this);
+    }
+
     private void OnDisable()
     {
+        StopInvulnerabilityBlink();
+
         if (_spriteRenderer != null)
         {
             _spriteRenderer.color = _originalColor;
