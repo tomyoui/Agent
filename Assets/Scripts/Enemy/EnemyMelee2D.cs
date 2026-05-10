@@ -27,16 +27,35 @@ public class EnemyMelee2D : MonoBehaviour
     [Tooltip("공격이 시작되는 거리")]
     [SerializeField] private float attackRange = 1.0f;
     [Tooltip("공격 전 선딜 시간 (초)")]
-    [SerializeField] private float attackWindup = 0.2f;
+    [SerializeField] private float attackWindup = 0.4f;
     [Tooltip("공격 후 쿨다운 시간 (초)")]
     [SerializeField] private float attackCooldown = 1.0f;
     [Tooltip("1회 공격 데미지")]
     [SerializeField] private int attackDamage = 5;
+    [Tooltip("실제 타격 원 반경")]
+    [SerializeField] private float hitRadius = 0.6f;
+    [Tooltip("공격 방향으로 판정 중심을 미는 거리")]
+    [SerializeField] private float hitForwardOffset = 0.9f;
+    [Tooltip("공격 준비 후 고정 방향으로 짧게 돌진하는 거리")]
+    [SerializeField] private float lungeDistance = 0.9f;
+    [Tooltip("돌진에 걸리는 시간 (초)")]
+    [SerializeField] private float lungeDuration = 0.18f;
+    [Tooltip("돌진 공격 후 추가 회복 시간 (초)")]
+    [SerializeField] private float attackRecoveryTime = 0.28f;
 
     private Rigidbody2D _rb;
     private bool _isPreparingAttack;
+    private bool _isLunging;
     private float _attackWindupEndTime;
+    private float _lungeStartTime;
+    private float _lungeEndTime;
     private float _recoveryEndTime;
+    private Vector2 _cachedAttackDirection = Vector2.right;
+    private Vector2 _lungeStartPosition;
+    private Vector2 _lungeEndPosition;
+    private Vector2 _lastHitCenter;
+    private float _lastHitRadius;
+    private bool _hasLastHit;
 
     // 넉백 중 AI 이동 차단을 위해 참조 보관 (null-safe: 없어도 동작)
     private KnockbackReceiver2D _knockbackReceiver;
@@ -62,7 +81,6 @@ public class EnemyMelee2D : MonoBehaviour
         attackDamage = enemyData.AttackDamage;
         moveSpeed = enemyData.MoveSpeed;
         attackRange = enemyData.AttackRange;
-        attackWindup = enemyData.AttackWindup;
         attackCooldown = enemyData.AttackCooldown;
     }
 
@@ -102,11 +120,16 @@ public class EnemyMelee2D : MonoBehaviour
 
             if (Time.time >= _attackWindupEndTime)
             {
-                ExecuteAttack();
                 _isPreparingAttack = false;
-                _recoveryEndTime = Time.time + Mathf.Max(0.01f, attackCooldown);
+                StartAttackLunge();
             }
 
+            return;
+        }
+
+        if (_isLunging)
+        {
+            UpdateAttackLunge();
             return;
         }
 
@@ -161,8 +184,44 @@ public class EnemyMelee2D : MonoBehaviour
 
     private void StartAttackWindup()
     {
+        Vector2 origin = transform.position;
+        Vector2 toTarget = GetTargetPoint(target) - origin;
+        _cachedAttackDirection = toTarget.sqrMagnitude > 0.0001f
+            ? toTarget.normalized
+            : Vector2.right;
+
         _isPreparingAttack = true;
         _attackWindupEndTime = Time.time + Mathf.Max(0.01f, attackWindup);
+    }
+
+    private void StartAttackLunge()
+    {
+        _rb.linearVelocity = Vector2.zero;
+
+        float safeLungeDuration = Mathf.Max(0.01f, lungeDuration);
+        _lungeStartTime = Time.time;
+        _lungeEndTime = Time.time + safeLungeDuration;
+        _lungeStartPosition = _rb.position;
+        _lungeEndPosition = _lungeStartPosition + _cachedAttackDirection.normalized * Mathf.Max(0f, lungeDistance);
+        _isLunging = true;
+    }
+
+    private void UpdateAttackLunge()
+    {
+        _rb.linearVelocity = Vector2.zero;
+
+        float duration = Mathf.Max(0.01f, _lungeEndTime - _lungeStartTime);
+        float progress = Mathf.Clamp01((Time.time - _lungeStartTime) / duration);
+        _rb.MovePosition(Vector2.Lerp(_lungeStartPosition, _lungeEndPosition, progress));
+
+        if (progress < 1f)
+        {
+            return;
+        }
+
+        _isLunging = false;
+        ExecuteAttack();
+        _recoveryEndTime = Time.time + Mathf.Max(0.01f, attackCooldown + attackRecoveryTime);
     }
 
     private void ExecuteAttack()
@@ -177,15 +236,50 @@ public class EnemyMelee2D : MonoBehaviour
 
         EnsurePlayerLayerConfigured();
 
+        Vector2 origin = transform.position;
+        Vector2 targetPoint = GetTargetPoint(target);
+        Vector2 attackDirection = _cachedAttackDirection.sqrMagnitude > 0.0001f
+            ? _cachedAttackDirection.normalized
+            : Vector2.right;
+
+        float safeHitRadius = Mathf.Max(0f, hitRadius);
+        Vector2 hitCenter = origin + attackDirection * Mathf.Max(0f, hitForwardOffset);
+        _lastHitCenter = hitCenter;
+        _lastHitRadius = safeHitRadius;
+        _hasLastHit = true;
+
+        Debug.Log(
+            $"[EnemyMelee2D] 공격 실행 | origin={origin}, target={target.name}, targetPoint={targetPoint}, " +
+            $"attackDirection={attackDirection}, hitCenter={hitCenter}, attackRange={attackRange}, hitRadius={safeHitRadius}",
+            this
+        );
+        Debug.DrawLine(origin, hitCenter, Color.red, 0.5f);
+
         MeleeHitResolver2D.DealDamageInRange(
-            transform.position,
-            attackRange,
+            hitCenter,
+            safeHitRadius,
             attackDamage,
             playerLayer,
             this,
             "EnemyMelee2D",
             CombatAttribute.Justice   // 현재 적 근접 공격 = 정의 속성 (임시). 적별 속성 추가 시 Inspector 필드로 분리
         );
+    }
+
+    private Vector2 GetTargetPoint(Transform candidate)
+    {
+        if (candidate == null)
+        {
+            return transform.position;
+        }
+
+        Collider2D targetCollider = candidate.GetComponentInChildren<Collider2D>();
+        if (targetCollider != null)
+        {
+            return targetCollider.bounds.center;
+        }
+
+        return candidate.position;
     }
 
     private bool ResolveTarget()
@@ -294,5 +388,13 @@ public class EnemyMelee2D : MonoBehaviour
     {
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(transform.position, attackRange);
+
+        if (!_hasLastHit)
+        {
+            return;
+        }
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(_lastHitCenter, _lastHitRadius);
     }
 }

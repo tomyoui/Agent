@@ -18,6 +18,8 @@ public class Health : MonoBehaviour, IDamageable
     [SerializeField] private float hitFlashDuration = 0.08f;
     [Tooltip("피격 플래시 색상")]
     [SerializeField] private Color hitFlashColor = Color.red;
+    [Tooltip("플레이어가 피격된 뒤 추가 데미지를 무시하는 시간 (초)")]
+    [SerializeField] private float playerInvulnerabilityDuration = 0.6f;
 
     [Header("Damage Number")]
     [Tooltip("데미지 숫자 프리팹. 미할당 시 경고 로그만 출력하고 다른 피드백은 정상 동작.")]
@@ -56,6 +58,8 @@ public class Health : MonoBehaviour, IDamageable
     private Color _originalColor = Color.white;
     private Vector3 _originalScale;
     private Coroutine _hitFlashRoutine;
+    private bool _isPlayerHealth;
+    private float _nextDamageAllowedTime;
 
     // 중복 사망 처리 방지 플래그
     private bool _isDead;
@@ -63,6 +67,7 @@ public class Health : MonoBehaviour, IDamageable
     private void Awake()
     {
         ApplyEnemyData();
+        _isPlayerHealth = IsPlayerOwnedHealth();
 
         if (maxHP < 1) maxHP = 1;
         if (currentHP <= 0 || currentHP > maxHP) currentHP = maxHP;
@@ -114,7 +119,17 @@ public class Health : MonoBehaviour, IDamageable
             return;
         }
 
+        if (_isPlayerHealth && Time.time < _nextDamageAllowedTime)
+        {
+            Debug.Log($"[Health] {gameObject.name} 피격 후 무적 중 데미지 무시: {damage}", this);
+            return;
+        }
+
         currentHP = Mathf.Max(0, currentHP - damage);
+        if (_isPlayerHealth)
+        {
+            _nextDamageAllowedTime = Time.time + Mathf.Max(0f, playerInvulnerabilityDuration);
+        }
 
         // 속성별 반응 분기.
         // 현재는 로그만 출력. 이후 이펙트/사운드/상성 효과 확장 시 이 switch에 추가.
@@ -229,6 +244,29 @@ public class Health : MonoBehaviour, IDamageable
         }
 
         _hitFlashRoutine = StartCoroutine(HitFlashRoutine());
+    }
+
+    private bool IsPlayerOwnedHealth()
+    {
+        int playerLayer = LayerMask.NameToLayer("Player");
+        if (playerLayer < 0)
+        {
+            return CompareTag("Player") || (transform.root != null && transform.root.CompareTag("Player"));
+        }
+
+        Transform current = transform;
+        while (current != null)
+        {
+            if (current.gameObject.layer == playerLayer || current.CompareTag("Player"))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return transform.root != null
+            && (transform.root.gameObject.layer == playerLayer || transform.root.CompareTag("Player"));
     }
 
     private IEnumerator HitFlashRoutine()

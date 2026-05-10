@@ -4,6 +4,9 @@ using UnityEngine;
 // 근접 공격의 원형 범위 및 콘 판정을 처리하는 정적 유틸리티 클래스
 public static class MeleeHitResolver2D
 {
+    public static Vector2 LastHitCenter { get; private set; }
+    public static float LastHitRadius { get; private set; }
+
     // 플레이어·적이 공통으로 사용하는 브로드페이즈 + 데미지 파이프라인 헬퍼
     public static int DealDamageInRange(
         Vector2 origin,
@@ -14,8 +17,10 @@ public static class MeleeHitResolver2D
         string debugLabel = "Melee",
         CombatAttribute attribute = CombatAttribute.Justice)
     {
-        Debug.Log($"[Resolver] range={range} mask={targetLayer.value}");
+        Debug.Log($"[{debugLabel}] 원형 판정 호출 | origin={origin}, range={range}, layerMask={targetLayer.value}", debugContext);
         float safeRange = Mathf.Max(0f, range);
+        LastHitCenter = origin;
+        LastHitRadius = safeRange;
         
         ContactFilter2D filter = new ContactFilter2D();
         filter.useLayerMask = true;
@@ -24,6 +29,7 @@ public static class MeleeHitResolver2D
 
         Collider2D[] hits = new Collider2D[32];
         int hitCount = Physics2D.OverlapCircle(origin, safeRange, filter, hits);
+        Debug.Log($"[{debugLabel}] OverlapCircle 감지 수: {hitCount}", debugContext);
         
         HashSet<IDamageable> damagedTargets = new HashSet<IDamageable>();
 
@@ -31,13 +37,20 @@ public static class MeleeHitResolver2D
 
         for (int i = 0; i < hitCount; i++)
         {
-            IDamageable damageable = hits[i].GetComponentInParent<IDamageable>();
+            Collider2D hit = hits[i];
+            IDamageable damageable = hit.GetComponentInParent<IDamageable>();
             
             // 만약 콜라이더의 부모 계층에 없다면, 프리팹 구조가 달라 형제 노드 등에 있을 수 있으므로 루트 기준 하위 전체 탐색
-            if (damageable == null && hits[i].transform.root != null)
+            if (damageable == null && hit.transform.root != null)
             {
-                damageable = hits[i].transform.root.GetComponentInChildren<IDamageable>();
+                damageable = hit.transform.root.GetComponentInChildren<IDamageable>();
             }
+
+            Debug.Log(
+                $"[{debugLabel}] 감지 콜라이더 | name={hit.name}, layer={LayerMask.LayerToName(hit.gameObject.layer)}({hit.gameObject.layer}), " +
+                $"bounds.center={(Vector2)hit.bounds.center}, damageable={(damageable != null ? "찾음" : "없음")}",
+                debugContext
+            );
 
             if (damageable == null || !damagedTargets.Add(damageable))
             {
@@ -45,6 +58,7 @@ public static class MeleeHitResolver2D
             }
 
             damageable.TakeDamage(damage, attribute);
+            Debug.Log($"[{debugLabel}] 데미지 적용 | target={hit.name}, damage={damage}, attribute={attribute}", debugContext);
             damagedCount++;
         }
 
