@@ -24,6 +24,9 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     [SerializeField, Min(0f)] protected float basicAttackHitGain = 5f;
     [SerializeField, Min(0f)] protected float skillHitGain = 15f;
 
+    [Header("Combat Data")]
+    [SerializeField] protected CharacterCombatData combatData;
+
     [Header("Hit Detection")]
     [SerializeField] private Transform attackPoint;
     [SerializeField] private float heavyAttackRange = 1.4f;
@@ -124,12 +127,15 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     private float _lastComboTime;
     private float _attackPressStartTime;
     private float _nextComboAttackTime;
+    private float _nextHeavyAttackTime;
     private Vector2 _lastAimDirection = Vector2.right;
     protected Camera _mainCamera;
     private bool _hasLoggedMissingAttackPoint;
     private Coroutine _hitStopRoutine;
     private Coroutine _attackSlowRoutine;
     private Coroutine _temporaryHeavyAttackFeedbackRoutine;
+    private Coroutine _heavyAttackRoutine;
+    private bool _isHeavyAttackLocked;
 
     private CameraFollow2D _cameraShake;
     protected PlayerController2D _controller;
@@ -195,6 +201,14 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         {
             _controller.AttackSpeedMultiplier = 1f;
         }
+
+        if (_heavyAttackRoutine != null)
+        {
+            StopCoroutine(_heavyAttackRoutine);
+            _heavyAttackRoutine = null;
+        }
+
+        _isHeavyAttackLocked = false;
     }
 
     protected virtual void Update()
@@ -365,6 +379,11 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     private void TriggerComboAttack()
     {
+        if (_isHeavyAttackLocked)
+        {
+            return;
+        }
+
         if (Time.time < _nextComboAttackTime)
         {
             return;
@@ -375,12 +394,12 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
             _currentComboStep = 0;
         }
 
-        _currentComboStep = (_currentComboStep % maxComboStep) + 1;
+        _currentComboStep = (_currentComboStep % GetMaxComboStep()) + 1;
         _lastComboTime = Time.time;
-        _nextComboAttackTime = Time.time + Mathf.Max(0.01f, attackCooldown);
+        _nextComboAttackTime = Time.time + Mathf.Max(0.01f, GetAttackCooldown());
 
         AttackDefinition attackDef = GetComboAttackDef(_currentComboStep);
-        int damage = CalculateSkillDamage(attackDef, fallbackFlatAttack: 10);
+        int damage = GetBasicAttackDamage(_currentComboStep, attackDef);
         GetComboStepGeometry(_currentComboStep, out float range, out float angle);
         ApplyAttackSlow(_currentComboStep);
         PerformAttack(range, damage, angle, attackDef.attribute, $"Combo {_currentComboStep}", _currentComboStep);
@@ -388,6 +407,45 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     }
 
     private void TriggerHeavyAttack()
+    {
+        if (_isHeavyAttackLocked || Time.time < _nextHeavyAttackTime)
+        {
+            return;
+        }
+
+        _nextHeavyAttackTime = Time.time + Mathf.Max(0f, GetHeavyAttackCooldown());
+        float startupDelay = GetHeavyAttackStartupDelay();
+        float recoveryDelay = GetHeavyAttackRecoveryDelay();
+        if (startupDelay > 0f || recoveryDelay > 0f)
+        {
+            _heavyAttackRoutine = StartCoroutine(HeavyAttackRoutine(startupDelay, recoveryDelay));
+            return;
+        }
+
+        ExecuteHeavyAttackHit();
+    }
+
+    private IEnumerator HeavyAttackRoutine(float startupDelay, float recoveryDelay)
+    {
+        _isHeavyAttackLocked = true;
+
+        if (startupDelay > 0f)
+        {
+            yield return new WaitForSeconds(startupDelay);
+        }
+
+        ExecuteHeavyAttackHit();
+
+        if (recoveryDelay > 0f)
+        {
+            yield return new WaitForSeconds(recoveryDelay);
+        }
+
+        _isHeavyAttackLocked = false;
+        _heavyAttackRoutine = null;
+    }
+
+    private void ExecuteHeavyAttackHit()
     {
         _currentComboStep = 0;
         _lastComboTime = 0f;
@@ -402,9 +460,9 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         _temporaryHeavyAttackFeedbackRoutine = StartCoroutine(TemporaryHeavyAttackScaleFeedback());
 
         PlayRandomHeavySwingSound();
-        int heavyDmg = CalculateSkillDamage(heavyAttackDef, fallbackFlatAttack: 14);
+        int heavyDmg = GetHeavyAttackDamage(heavyAttackDef);
         ApplyAttackSlow(comboStep: 0);
-        PerformAttack(heavyAttackRange, heavyDmg, heavyAttackAngle, heavyAttackDef.attribute, "Heavy", 0);
+        PerformAttack(GetHeavyAttackRange(), heavyDmg, heavyAttackAngle, heavyAttackDef.attribute, "Heavy", 0);
         onHeavyAttack?.Invoke();
     }
 
@@ -498,7 +556,51 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         return aimDirection;
     }
 
-    private AttackDefinition GetComboAttackDef(int comboStep)
+    protected virtual int GetMaxComboStep()
+    {
+        return Mathf.Max(1, maxComboStep);
+    }
+
+    protected virtual float GetAttackCooldown()
+    {
+        return combatData != null ? combatData.AttackCooldown : attackCooldown;
+    }
+
+    protected virtual float GetHeavyAttackCooldown()
+    {
+        return combatData != null ? combatData.HeavyAttackCooldown : 0f;
+    }
+
+    protected virtual float GetHeavyAttackStartupDelay()
+    {
+        return combatData != null ? combatData.HeavyAttackStartupDelay : 0f;
+    }
+
+    protected virtual float GetHeavyAttackRecoveryDelay()
+    {
+        return combatData != null ? combatData.HeavyAttackRecoveryDelay : 0f;
+    }
+
+    protected virtual int GetBasicAttackDamage(int comboStep, AttackDefinition attackDef)
+    {
+        return combatData != null
+            ? Mathf.Max(1, combatData.BasicAttackDamage)
+            : CalculateSkillDamage(attackDef, fallbackFlatAttack: 10);
+    }
+
+    protected virtual int GetHeavyAttackDamage(AttackDefinition attackDef)
+    {
+        return combatData != null
+            ? Mathf.Max(1, combatData.HeavyAttackDamage)
+            : CalculateSkillDamage(attackDef, fallbackFlatAttack: 14);
+    }
+
+    protected virtual float GetHeavyAttackRange()
+    {
+        return combatData != null ? combatData.HeavyAttackRange : heavyAttackRange;
+    }
+
+    protected virtual AttackDefinition GetComboAttackDef(int comboStep)
     {
         switch (comboStep)
         {
@@ -508,12 +610,12 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         }
     }
 
-    private void GetComboStepGeometry(int comboStep, out float range, out float angle)
+    protected virtual void GetComboStepGeometry(int comboStep, out float range, out float angle)
     {
         switch (comboStep)
         {
             case 1:
-                range = combo1Range;
+                range = combatData != null ? combatData.AttackRange : combo1Range;
                 angle = combo1Angle;
                 break;
             case 2:
@@ -667,23 +769,23 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         _hitStopRoutine = null;
     }
 
-    private float GetHitStopDuration(int comboStep)
+    protected virtual float GetHitStopDuration(int comboStep)
     {
         switch (comboStep)
         {
-            case 0: return heavyHitStop;
-            case 1: return combo1HitStop;
+            case 0: return combatData != null ? combatData.HitStopDuration : heavyHitStop;
+            case 1: return combatData != null ? combatData.HitStopDuration : combo1HitStop;
             case 2: return combo2HitStop;
             default: return combo3HitStop;
         }
     }
 
-    private float GetKnockbackForce(int comboStep)
+    protected virtual float GetKnockbackForce(int comboStep)
     {
         switch (comboStep)
         {
-            case 0: return heavyKnockbackForce;
-            case 1: return combo1KnockbackForce;
+            case 0: return combatData != null ? combatData.KnockbackPower : heavyKnockbackForce;
+            case 1: return combatData != null ? combatData.KnockbackPower : combo1KnockbackForce;
             case 2: return combo2KnockbackForce;
             default: return combo3KnockbackForce;
         }
