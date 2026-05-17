@@ -95,6 +95,21 @@ public class PartyManager2D : MonoBehaviour
         return result;
     }
 
+    public int GetPartyMemberCount()
+    {
+        return partyMembers != null ? partyMembers.Length : 0;
+    }
+
+    public GameObject GetPartyMember(int index)
+    {
+        return IsValidIndex(index) ? partyMembers[index] : null;
+    }
+
+    public Health GetPartyMemberHealth(int index)
+    {
+        return GetMemberHealth(index);
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

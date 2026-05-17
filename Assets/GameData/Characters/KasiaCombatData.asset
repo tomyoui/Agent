@@ -14,13 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   basicAttackDamage: 30
   heavyAttackDamage: 55
-  skillDamage: 0
+  skillDamage: 70
   ultimateDamage: 0
   attackCooldown: 0.55
+  skillCooldown: 8
   heavyAttackCooldown: 1
   heavyAttackStartupDelay: 0.3
   heavyAttackRecoveryDelay: 0.4
   attackRange: 1.6
+  skillRange: 1.5
   heavyAttackRange: 1.4
   hitStopDuration: 0.08
   knockbackPower: 7

@@ -44,7 +44,7 @@ public class DamageNumber : MonoBehaviour
     /// 데미지 숫자를 지정 위치에 스폰한다.
     /// prefab이 null이면 경고 후 스킵 — 다른 피드백(사운드 등)은 정상 동작함.
     /// </summary>
-    public static void Spawn(DamageNumber prefab, Vector3 worldPosition, int damage)
+    public static void Spawn(DamageNumber prefab, Vector3 worldPosition, int damage, Color? textColor = null)
     {
         if (prefab == null)
         {
@@ -59,7 +59,7 @@ public class DamageNumber : MonoBehaviour
         spawnPos.x += Random.Range(-prefab.randomXRange, prefab.randomXRange);
 
         DamageNumber instance = Instantiate(prefab, spawnPos, Quaternion.identity);
-        instance.Play(damage);
+        instance.Play(damage, textColor);
     }
 
     // ─────────────────────────────────────────────
@@ -76,10 +76,16 @@ public class DamageNumber : MonoBehaviour
                              "프리팹에 TextMeshPro 컴포넌트를 추가하세요.", this);
     }
 
-    private void Play(int damage)
+    private void Play(int damage, Color? textColor)
     {
         if (label != null)
+        {
             label.text = damage.ToString();
+            if (textColor.HasValue)
+            {
+                label.color = textColor.Value;
+            }
+        }
 
         StartCoroutine(AnimateRoutine());
     }

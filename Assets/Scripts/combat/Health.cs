@@ -113,7 +113,7 @@ public class Health : MonoBehaviour, IDamageable
         deathSfxVolume = enemyData.DeathSfxVolume;
     }
 
-    public void TakeDamage(int damage, CombatAttribute attribute = CombatAttribute.Justice)
+    public void TakeDamage(int damage, CombatAttribute attribute = CombatAttribute.Justice, Color? damageNumberColor = null)
     {
         // 이미 사망 처리 중이면 추가 데미지 무시
         if (_isDead) return;
@@ -153,7 +153,7 @@ public class Health : MonoBehaviour, IDamageable
         }
 
         // 데미지 숫자 표시: 피격 대상 머리 위 월드 위치에 스폰
-        DamageNumber.Spawn(damageNumberPrefab, transform.position, damage);
+        DamageNumber.Spawn(damageNumberPrefab, transform.position, damage, damageNumberColor);
 
         TriggerHitFlash();
 

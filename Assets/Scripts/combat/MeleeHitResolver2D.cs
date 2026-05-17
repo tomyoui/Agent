@@ -15,7 +15,8 @@ public static class MeleeHitResolver2D
         LayerMask targetLayer,
         Object debugContext = null,
         string debugLabel = "Melee",
-        CombatAttribute attribute = CombatAttribute.Justice)
+        CombatAttribute attribute = CombatAttribute.Justice,
+        Color? damageNumberColor = null)
     {
         Debug.Log($"[{debugLabel}] 원형 판정 호출 | origin={origin}, range={range}, layerMask={targetLayer.value}", debugContext);
         float safeRange = Mathf.Max(0f, range);
@@ -57,7 +58,7 @@ public static class MeleeHitResolver2D
                 continue;
             }
 
-            damageable.TakeDamage(damage, attribute);
+            damageable.TakeDamage(damage, attribute, damageNumberColor);
             Debug.Log($"[{debugLabel}] 데미지 적용 | target={hit.name}, damage={damage}, attribute={attribute}", debugContext);
             damagedCount++;
         }
@@ -81,7 +82,8 @@ public static class MeleeHitResolver2D
         LayerMask targetLayer,
         Object debugContext = null,
         string debugLabel = "MeleeCone",
-        CombatAttribute attribute = CombatAttribute.Justice)
+        CombatAttribute attribute = CombatAttribute.Justice,
+        Color? damageNumberColor = null)
     {
         Vector2 safeForward = forwardDirection.sqrMagnitude > 0.0001f
             ? forwardDirection.normalized
@@ -136,7 +138,7 @@ public static class MeleeHitResolver2D
                 continue;
             }
 
-            damageable.TakeDamage(damage, attribute);
+            damageable.TakeDamage(damage, attribute, damageNumberColor);
             damagedCount++;
         }
 

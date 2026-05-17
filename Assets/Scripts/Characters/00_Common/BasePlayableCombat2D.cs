@@ -146,6 +146,9 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     public float CurrentUltimateGauge => ultimateGauge;
     public bool IsUltimateReady => CanUseUltimate();
     public virtual bool IsPrimaryCombat => true;
+    public virtual float SkillCooldownRemaining => 0f;
+    public virtual float SkillCooldownDuration => 0f;
+    public bool IsSkillReady => SkillCooldownRemaining <= 0f;
 
     protected virtual void Awake()
     {
@@ -536,7 +539,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         return false;
     }
 
-    private Vector2 GetCurrentAimDirection()
+    protected Vector2 GetCurrentAimDirection()
     {
         Vector2 aimDirection = _lastAimDirection;
         if (attackPoint != null)
@@ -633,14 +636,12 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     {
         if (audioSource == null)
         {
-            Debug.LogWarning("[ArrivalCombat2D] AudioSource is not assigned.", this);
             return;
         }
 
         AudioClip clip = isMelee ? meleeHitSfx : gunHitSfx;
         if (clip == null)
         {
-            Debug.LogWarning("[ArrivalCombat2D] Hit SFX clip is not assigned.", this);
             return;
         }
 
