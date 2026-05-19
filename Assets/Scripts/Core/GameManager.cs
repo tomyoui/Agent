@@ -53,20 +53,21 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void GameOver()
     {
-        Debug.Log("[GameManager] GameOver() invoked.", this);
+        Debug.Log("[GameManager] 게임오버 진입", this);
         Time.timeScale = 0f;
         ResolveGameOverUI();
         if (gameOverUI != null)
         {
-            Debug.Log($"[GameManager] Showing GameOverUI component on {gameOverUI.gameObject.name}.", this);
+            Debug.Log($"[GameManager] GameOverUI 표시: {gameOverUI.gameObject.name}", this);
             gameOverUI.Show();
         }
         else
         {
-            Debug.LogError("[GameManager] gameOverUI reference is null. Cannot show Game Over UI.", this);
+            Debug.LogError("[GameManager] GameOverUI 참조가 없어 표시할 수 없습니다.", this);
         }
 
-        Debug.Log("[GameManager] Game Over");
+        EnsureStoppedHudVisible();
+        Debug.Log("[GameManager] 게임오버 처리 완료");
     }
 
     /// <summary>
@@ -96,5 +97,23 @@ public class GameManager : MonoBehaviour
         }
 
         gameOverUI = FindFirstObjectByType<GameOverUI>(FindObjectsInactive.Include);
+    }
+
+    private void EnsureStoppedHudVisible()
+    {
+        PartyCombatTestUI[] huds = FindObjectsByType<PartyCombatTestUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (huds == null || huds.Length == 0)
+        {
+            Debug.LogWarning("[GameManager] 정지 상태에서 확인할 전투 HUD를 찾지 못했습니다.", this);
+            return;
+        }
+
+        for (int i = 0; i < huds.Length; i++)
+        {
+            if (huds[i] != null)
+            {
+                huds[i].EnsureStoppedHudVisible("GameManager.GameOver");
+            }
+        }
     }
 }

@@ -35,6 +35,7 @@ public class PartyManager2D : MonoBehaviour
     private bool _isAttackPressPending;
     private float _attackPressStartTime;
     private BasePlayableCombat2D _attackPressCombat;
+    private bool _loggedPartySceneState;
 
     public int CurrentIndex => _currentIndex;
 
@@ -144,7 +145,9 @@ public class PartyManager2D : MonoBehaviour
             return;
         }
 
+        DisableUnmanagedCharacterBaseObjects();
         ForceActivateSingleMember(initialIndex);
+        LogPartyVisibilityState("초기 활성화 후");
         LogPartyAssignmentState();
     }
 
@@ -461,21 +464,39 @@ public class PartyManager2D : MonoBehaviour
             ? previousMember.transform.position
             : nextMember.transform.position;
 
-        nextMember.transform.position = inheritPosition;
-
-        if (previousMember != null && previousMember != nextMember)
-        {
-            previousMember.SetActive(false);
-        }
-
-        nextMember.SetActive(true);
+        SyncAllMemberPositions(inheritPosition);
+        StopAllMemberRigidbodies();
+        SetSingleMemberVisible(targetIndex);
         _currentIndex = targetIndex;
+        LogPartyVisibilityState("스위칭 후");
 
         Debug.Log($"[PartyManager2D] Switched to {nextMember.name} (slot {targetIndex + 1}).", this);
     }
 
     private void ForceActivateSingleMember(int activeIndex)
     {
+        Vector3 activePosition = partyMembers[activeIndex] != null
+            ? partyMembers[activeIndex].transform.position
+            : transform.position;
+
+        SyncAllMemberPositions(activePosition);
+        StopAllMemberRigidbodies();
+        SetSingleMemberVisible(activeIndex);
+
+        _currentIndex = activeIndex;
+        _nextSwitchTime = 0f;
+
+        Debug.Log($"[PartyManager2D] Initial active member: {partyMembers[activeIndex].name} (slot {activeIndex + 1}).", this);
+        WarnAboutConflictingComponents();
+    }
+
+    private void SyncAllMemberPositions(Vector3 position)
+    {
+        if (partyMembers == null)
+        {
+            return;
+        }
+
         for (int i = 0; i < partyMembers.Length; i++)
         {
             GameObject member = partyMembers[i];
@@ -484,14 +505,178 @@ public class PartyManager2D : MonoBehaviour
                 continue;
             }
 
-            member.SetActive(i == activeIndex);
+            member.transform.position = position;
+
+            Rigidbody2D rb = member.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.position = position;
+            }
+        }
+    }
+
+    private void StopAllMemberRigidbodies()
+    {
+        if (partyMembers == null)
+        {
+            return;
         }
 
-        _currentIndex = activeIndex;
-        _nextSwitchTime = 0f;
+        for (int i = 0; i < partyMembers.Length; i++)
+        {
+            GameObject member = partyMembers[i];
+            if (member == null)
+            {
+                continue;
+            }
 
-        Debug.Log($"[PartyManager2D] Initial active member: {partyMembers[activeIndex].name} (slot {activeIndex + 1}).", this);
-        WarnAboutConflictingComponents();
+            Rigidbody2D rb = member.GetComponent<Rigidbody2D>();
+            if (rb == null)
+            {
+                continue;
+            }
+
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+        }
+    }
+
+    private void SetSingleMemberVisible(int activeIndex)
+    {
+        if (partyMembers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < partyMembers.Length; i++)
+        {
+            GameObject member = partyMembers[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            bool shouldBeActive = i == activeIndex;
+            member.SetActive(shouldBeActive);
+
+            SpriteRenderer[] renderers = member.GetComponentsInChildren<SpriteRenderer>(true);
+            for (int j = 0; j < renderers.Length; j++)
+            {
+                if (renderers[j] != null)
+                {
+                    renderers[j].enabled = shouldBeActive;
+                }
+            }
+        }
+    }
+
+    private void DisableUnmanagedCharacterBaseObjects()
+    {
+        Transform[] transforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        int arrivalCount = 0;
+        int kasiaCount = 0;
+        int agnieszkaCount = 0;
+        int unmanagedCharacterBaseCount = 0;
+
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Transform candidate = transforms[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (candidate.name == "Arrival")
+            {
+                arrivalCount++;
+            }
+            else if (candidate.name == "Kasia")
+            {
+                kasiaCount++;
+            }
+            else if (candidate.name == "Agnieszka")
+            {
+                agnieszkaCount++;
+            }
+
+            if (candidate.parent != null || candidate.name != "Character_Base")
+            {
+                continue;
+            }
+
+            GameObject candidateObject = candidate.gameObject;
+            if (IsManagedPartyObject(candidateObject))
+            {
+                continue;
+            }
+
+            unmanagedCharacterBaseCount++;
+            if (candidateObject.activeSelf)
+            {
+                candidateObject.SetActive(false);
+                Debug.Log($"[PartyManager2D] 파티 배열에 없는 Character_Base를 비활성화했습니다: {candidateObject.name}", candidateObject);
+            }
+        }
+
+        if (!_loggedPartySceneState)
+        {
+            _loggedPartySceneState = true;
+            Debug.Log($"[PartyManager2D] 씬 파티 오브젝트 확인: Arrival={arrivalCount}, Kasia={kasiaCount}, Agnieszka={agnieszkaCount}, 미관리 Character_Base={unmanagedCharacterBaseCount}", this);
+        }
+    }
+
+    private bool IsManagedPartyObject(GameObject candidate)
+    {
+        if (candidate == null || partyMembers == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < partyMembers.Length; i++)
+        {
+            GameObject member = partyMembers[i];
+            if (member == null)
+            {
+                continue;
+            }
+
+            if (candidate == member || candidate.transform.IsChildOf(member.transform) || member.transform.IsChildOf(candidate.transform))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void LogPartyVisibilityState(string context)
+    {
+        if (partyMembers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < partyMembers.Length; i++)
+        {
+            GameObject member = partyMembers[i];
+            if (member == null)
+            {
+                Debug.Log($"[PartyManager2D] {context}: slot={i + 1} member=null", this);
+                continue;
+            }
+
+            SpriteRenderer[] renderers = member.GetComponentsInChildren<SpriteRenderer>(true);
+            int enabledRendererCount = 0;
+            for (int j = 0; j < renderers.Length; j++)
+            {
+                if (renderers[j] != null && renderers[j].enabled)
+                {
+                    enabledRendererCount++;
+                }
+            }
+
+            Debug.Log($"[PartyManager2D] {context}: slot={i + 1} member={member.name} activeSelf={member.activeSelf} activeInHierarchy={member.activeInHierarchy} rendererEnabled={enabledRendererCount}/{renderers.Length}", member);
+        }
     }
 
     private int ResolveInitialIndex()

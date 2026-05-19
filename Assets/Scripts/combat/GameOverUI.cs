@@ -7,6 +7,7 @@ public class GameOverUI : MonoBehaviour
     [SerializeField] private GameObject panel;
     [SerializeField] private Button restartButton;
     [SerializeField] private Button quitButton;
+    [SerializeField] private int gameOverSortingOrder = 100;
 
     private void Awake()
     {
@@ -19,7 +20,8 @@ public class GameOverUI : MonoBehaviour
         if (buttons.Length >= 1) restartButton = buttons[0];
         if (buttons.Length >= 2) quitButton = buttons[1];
 
-        Debug.Log($"버튼 개수: {buttons.Length}");
+        ConfigurePanelCanvas();
+        Debug.Log($"[GameOverUI] 버튼 개수: {buttons.Length}");
         Hide();
 
         if (restartButton != null) restartButton.onClick.AddListener(OnRestart);
@@ -30,14 +32,14 @@ public class GameOverUI : MonoBehaviour
     {
         if (panel == null)
         {
-            Debug.LogError("[GameOverUI] Show() failed because panel reference is null.", this);
+            Debug.LogError("[GameOverUI] 패널 참조가 없어 표시할 수 없습니다.", this);
             return;
         }
 
-        Debug.Log($"[GameOverUI] Show() before SetActive(true): panel={panel.name} activeSelf={panel.activeSelf} activeInHierarchy={panel.activeInHierarchy}", this);
+        ConfigurePanelCanvas();
+        Debug.Log($"[GameOverUI] 표시 전 상태: panel={panel.name} activeSelf={panel.activeSelf} activeInHierarchy={panel.activeInHierarchy}", this);
         panel.SetActive(true);
-        panel.transform.SetAsLastSibling();
-        Debug.Log($"[GameOverUI] Show() after SetActive(true): panel={panel.name} activeSelf={panel.activeSelf} activeInHierarchy={panel.activeInHierarchy}", this);
+        Debug.Log($"[GameOverUI] 표시 후 상태: panel={panel.name} activeSelf={panel.activeSelf} activeInHierarchy={panel.activeInHierarchy}", this);
     }
 
     public void Hide()
@@ -59,5 +61,22 @@ public class GameOverUI : MonoBehaviour
 #else
         Application.Quit();
 #endif
+    }
+
+    private void ConfigurePanelCanvas()
+    {
+        if (panel == null)
+        {
+            return;
+        }
+
+        Canvas panelCanvas = panel.GetComponent<Canvas>();
+        if (panelCanvas == null)
+        {
+            panelCanvas = panel.AddComponent<Canvas>();
+        }
+
+        panelCanvas.overrideSorting = true;
+        panelCanvas.sortingOrder = gameOverSortingOrder;
     }
 }

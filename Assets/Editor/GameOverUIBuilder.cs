@@ -65,6 +65,7 @@ public class GameOverUIBuilder : Editor
         tmp.text = content;
         tmp.fontSize = fontSize;
         tmp.alignment = TextAlignmentOptions.Center;
+        tmp.overflowMode = TextOverflowModes.Truncate;
         RectTransform r = obj.GetComponent<RectTransform>() ?? obj.AddComponent<RectTransform>();
         r.anchorMin = new Vector2(0.5f, 0.5f);
         r.anchorMax = new Vector2(0.5f, 0.5f);
@@ -106,6 +107,7 @@ public class GameOverUIBuilder : Editor
         tmp.text = label;
         tmp.fontSize = 36;
         tmp.alignment = TextAlignmentOptions.Center;
+        tmp.overflowMode = TextOverflowModes.Truncate;
 
         return btn;
     }

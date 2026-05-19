@@ -7,6 +7,10 @@ public class PartyCombatTestUI : MonoBehaviour
     [SerializeField] private PartyManager2D partyManager;
     [SerializeField] private Vector2 anchoredPosition = new Vector2(10f, -10f);
     [SerializeField] private Vector2 panelSize = new Vector2(230f, 158f);
+    [SerializeField] private Vector2 referenceResolution = new Vector2(1920f, 1080f);
+    [SerializeField, Range(0f, 1f)] private float matchWidthOrHeight = 0.5f;
+    [SerializeField, Min(1f)] private float hudScale = 1.6f;
+    [SerializeField] private int hudSortingOrder = 110;
     [SerializeField] private Color panelColor = new Color(0f, 0f, 0f, 0.28f);
     [SerializeField] private Color rowColor = new Color(0.045f, 0.05f, 0.058f, 0.68f);
     [SerializeField] private Color activeRowColor = new Color(0.11f, 0.095f, 0.045f, 0.72f);
@@ -28,6 +32,11 @@ public class PartyCombatTestUI : MonoBehaviour
     private TextMeshProUGUI _skillTitleText;
     private TextMeshProUGUI _eSkillText;
     private TextMeshProUGUI _qSkillText;
+    private GameObject _hudRoot;
+    private RectTransform _panelRect;
+    private Canvas _hudCanvas;
+    private bool _loggedHudState;
+    private bool _loggedStoppedHudState;
 
     private sealed class MemberRow
     {
@@ -49,10 +58,28 @@ public class PartyCombatTestUI : MonoBehaviour
         }
 
         BuildUI();
+        ConfigureCanvasScaler();
+        LogHudState("Awake");
+    }
+
+    private void OnEnable()
+    {
+        EnsureHudVisible();
     }
 
     private void Update()
     {
+        EnsureHudVisible();
+
+        if (Mathf.Approximately(Time.timeScale, 0f))
+        {
+            LogStoppedHudState("Update");
+        }
+        else
+        {
+            _loggedStoppedHudState = false;
+        }
+
         if (partyManager == null)
         {
             return;
@@ -62,20 +89,45 @@ public class PartyCombatTestUI : MonoBehaviour
         UpdateSkillStatus();
     }
 
+    private void LateUpdate()
+    {
+        EnsureHudVisible();
+
+        if (Mathf.Approximately(Time.timeScale, 0f))
+        {
+            LogStoppedHudState("LateUpdate");
+        }
+    }
+
+    public void EnsureStoppedHudVisible(string context)
+    {
+        EnsureHudVisible();
+        LogStoppedHudState(context);
+    }
+
     private void BuildUI()
     {
-        if (transform.Find("PartyCombatTestHUD") != null)
+        Transform existingRoot = transform.Find("PartyCombatTestHUD");
+        if (existingRoot != null)
         {
+            _hudRoot = existingRoot.gameObject;
+            _panelRect = existingRoot.Find("PartyCombatTestPanel") as RectTransform;
+            _hudCanvas = _hudRoot.GetComponent<Canvas>();
             return;
         }
 
         GameObject rootObject = new GameObject("PartyCombatTestHUD", typeof(RectTransform));
         rootObject.transform.SetParent(transform, false);
+        _hudRoot = rootObject;
         RectTransform rootRect = rootObject.GetComponent<RectTransform>();
         rootRect.anchorMin = Vector2.zero;
         rootRect.anchorMax = Vector2.one;
         rootRect.offsetMin = Vector2.zero;
         rootRect.offsetMax = Vector2.zero;
+
+        _hudCanvas = rootObject.AddComponent<Canvas>();
+        _hudCanvas.overrideSorting = true;
+        _hudCanvas.sortingOrder = hudSortingOrder;
 
         BuildPartyPanel(rootObject.transform);
     }
@@ -84,11 +136,13 @@ public class PartyCombatTestUI : MonoBehaviour
     {
         GameObject panelObject = CreateImageObject(root, "PartyCombatTestPanel", panelColor);
         RectTransform panelRect = panelObject.GetComponent<RectTransform>();
+        _panelRect = panelRect;
         panelRect.anchorMin = new Vector2(0f, 1f);
         panelRect.anchorMax = new Vector2(0f, 1f);
         panelRect.pivot = new Vector2(0f, 1f);
         panelRect.anchoredPosition = anchoredPosition;
         panelRect.sizeDelta = panelSize;
+        panelRect.localScale = Vector3.one * hudScale;
 
         TextMeshProUGUI titleText = CreateText(panelObject.transform, "TitleText", new Vector2(9f, -6f), new Vector2(210f, 18f), 13f);
         titleText.text = "PARTY";
@@ -198,9 +252,149 @@ public class PartyCombatTestUI : MonoBehaviour
         text.color = normalTextColor;
         text.raycastTarget = false;
         text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.overflowMode = TextOverflowModes.Truncate;
 
         return text;
+    }
+
+    private void ConfigureCanvasScaler()
+    {
+        CanvasScaler scaler = GetComponentInParent<CanvasScaler>();
+        if (scaler == null)
+        {
+            return;
+        }
+
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = referenceResolution;
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = matchWidthOrHeight;
+
+        Canvas canvas = scaler.GetComponent<Canvas>();
+        if (canvas != null)
+        {
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.enabled = true;
+            canvas.overrideSorting = false;
+        }
+    }
+
+    private void EnsureHudVisible()
+    {
+        if (_hudRoot != null && !_hudRoot.activeSelf)
+        {
+            _hudRoot.SetActive(true);
+        }
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null && !canvas.enabled)
+        {
+            canvas.enabled = true;
+        }
+
+        if (_hudRoot != null && _hudCanvas == null)
+        {
+            _hudCanvas = _hudRoot.GetComponent<Canvas>();
+            if (_hudCanvas == null)
+            {
+                _hudCanvas = _hudRoot.AddComponent<Canvas>();
+            }
+        }
+
+        if (_hudCanvas != null)
+        {
+            _hudCanvas.overrideSorting = true;
+            _hudCanvas.sortingOrder = hudSortingOrder;
+        }
+
+        if (_panelRect == null && _hudRoot != null)
+        {
+            _panelRect = _hudRoot.transform.Find("PartyCombatTestPanel") as RectTransform;
+        }
+
+        if (_panelRect == null)
+        {
+            return;
+        }
+
+        _panelRect.anchorMin = new Vector2(0f, 1f);
+        _panelRect.anchorMax = new Vector2(0f, 1f);
+        _panelRect.pivot = new Vector2(0f, 1f);
+        _panelRect.anchoredPosition = anchoredPosition;
+        _panelRect.sizeDelta = panelSize;
+        _panelRect.localScale = Vector3.one * hudScale;
+    }
+
+    private void LogHudState(string context)
+    {
+        if (_loggedHudState)
+        {
+            return;
+        }
+
+        _loggedHudState = true;
+
+        CanvasScaler scaler = GetComponentInParent<CanvasScaler>();
+        Canvas canvas = scaler != null ? scaler.GetComponent<Canvas>() : GetComponentInParent<Canvas>();
+        RectTransform rootRect = _hudRoot != null ? _hudRoot.GetComponent<RectTransform>() : null;
+        CanvasGroup group = _hudRoot != null ? _hudRoot.GetComponentInParent<CanvasGroup>() : null;
+
+        string scalerInfo = scaler != null
+            ? $"mode={scaler.uiScaleMode}, ref={scaler.referenceResolution}, matchMode={scaler.screenMatchMode}, match={scaler.matchWidthOrHeight}, scaleFactor={(canvas != null ? canvas.scaleFactor : 0f):0.###}"
+            : "CanvasScaler 없음";
+        string canvasInfo = canvas != null
+            ? $"enabled={canvas.enabled}, renderMode={canvas.renderMode}, sortingOrder={canvas.sortingOrder}"
+            : "Canvas 없음";
+        string rootInfo = rootRect != null
+            ? $"scale={rootRect.localScale}, size={rootRect.sizeDelta}, pos={rootRect.anchoredPosition}, activeSelf={_hudRoot.activeSelf}, activeInHierarchy={_hudRoot.activeInHierarchy}"
+            : "HUD Root 없음";
+        string groupInfo = group != null
+            ? $"alpha={group.alpha}, interactable={group.interactable}, blocksRaycasts={group.blocksRaycasts}"
+            : "CanvasGroup 없음";
+
+        Debug.Log($"[HUD] {context} CanvasScaler 확인: {scalerInfo}", this);
+        Debug.Log($"[HUD] {context} Canvas 확인: {canvasInfo}", this);
+        Debug.Log($"[HUD] {context} Root Rect 확인: {rootInfo}", this);
+        Debug.Log($"[HUD] {context} CanvasGroup 확인: {groupInfo}", this);
+    }
+
+    private void LogStoppedHudState(string context)
+    {
+        if (_loggedStoppedHudState)
+        {
+            return;
+        }
+
+        _loggedStoppedHudState = true;
+
+        CanvasScaler scaler = GetComponentInParent<CanvasScaler>();
+        Canvas parentCanvas = scaler != null ? scaler.GetComponent<Canvas>() : GetComponentInParent<Canvas>();
+        RectTransform rootRect = _hudRoot != null ? _hudRoot.GetComponent<RectTransform>() : null;
+        CanvasGroup group = _hudRoot != null ? _hudRoot.GetComponentInParent<CanvasGroup>() : null;
+
+        string rootActive = _hudRoot != null
+            ? $"rootActive={_hudRoot.activeSelf}, hierarchy={_hudRoot.activeInHierarchy}"
+            : "HUD Root 없음";
+        string parentCanvasInfo = parentCanvas != null
+            ? $"canvasEnabled={parentCanvas.enabled}, renderMode={parentCanvas.renderMode}, sortingOrder={parentCanvas.sortingOrder}"
+            : "부모 Canvas 없음";
+        string hudCanvasInfo = _hudCanvas != null
+            ? $"hudCanvasEnabled={_hudCanvas.enabled}, overrideSorting={_hudCanvas.overrideSorting}, sortingOrder={_hudCanvas.sortingOrder}"
+            : "HUD Canvas 없음";
+        string scalerInfo = scaler != null
+            ? $"scaleMode={scaler.uiScaleMode}, ref={scaler.referenceResolution}, match={scaler.matchWidthOrHeight}"
+            : "CanvasScaler 없음";
+        string rectInfo = rootRect != null
+            ? $"scale={rootRect.localScale}, pos={rootRect.anchoredPosition}, size={rootRect.sizeDelta}"
+            : "Root Rect 없음";
+        string panelInfo = _panelRect != null
+            ? $"panelScale={_panelRect.localScale}, panelPos={_panelRect.anchoredPosition}, panelSize={_panelRect.sizeDelta}"
+            : "Panel Rect 없음";
+        string groupInfo = group != null
+            ? $"alpha={group.alpha}, interactable={group.interactable}, blocksRaycasts={group.blocksRaycasts}"
+            : "CanvasGroup 없음";
+
+        Debug.Log($"[HUD] 정지 상태 HUD 확인({context}): timeScale={Time.timeScale}, {rootActive}, {parentCanvasInfo}, {hudCanvasInfo}, {scalerInfo}, {rectInfo}, {panelInfo}, {groupInfo}", this);
     }
 
     private void UpdateMemberRows()
