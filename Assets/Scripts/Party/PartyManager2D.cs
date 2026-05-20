@@ -27,6 +27,8 @@ public class PartyManager2D : MonoBehaviour
     [SerializeField] private bool enableInputDebugLog;
     [SerializeField, Min(0.1f)] private float debugLogInterval = 0.5f;
 
+    private const float GamepadMoveAimThreshold = 0.2f;
+
     private int _currentIndex = -1;
     private float _nextSwitchTime;
     private bool[] _deadMembers;
@@ -36,6 +38,7 @@ public class PartyManager2D : MonoBehaviour
     private float _attackPressStartTime;
     private BasePlayableCombat2D _attackPressCombat;
     private bool _loggedPartySceneState;
+    private bool _useGamepadAimDirection;
 
     public int CurrentIndex => _currentIndex;
 
@@ -214,20 +217,21 @@ public class PartyManager2D : MonoBehaviour
 
     private void HandleSwitchInput()
     {
-        if (Keyboard.current == null)
-        {
-            return;
-        }
+        Keyboard keyboard = Keyboard.current;
+        Gamepad gamepad = Gamepad.current;
 
-        if (Keyboard.current.digit1Key.wasPressedThisFrame || Keyboard.current.numpad1Key.wasPressedThisFrame)
+        if ((keyboard != null && (keyboard.digit1Key.wasPressedThisFrame || keyboard.numpad1Key.wasPressedThisFrame)) ||
+            (gamepad != null && gamepad.dpad.up.wasPressedThisFrame))
         {
             TrySwitchTo(0);
         }
-        else if (Keyboard.current.digit2Key.wasPressedThisFrame || Keyboard.current.numpad2Key.wasPressedThisFrame)
+        else if ((keyboard != null && (keyboard.digit2Key.wasPressedThisFrame || keyboard.numpad2Key.wasPressedThisFrame)) ||
+                 (gamepad != null && gamepad.dpad.right.wasPressedThisFrame))
         {
             TrySwitchTo(1);
         }
-        else if (Keyboard.current.digit3Key.wasPressedThisFrame || Keyboard.current.numpad3Key.wasPressedThisFrame)
+        else if ((keyboard != null && (keyboard.digit3Key.wasPressedThisFrame || keyboard.numpad3Key.wasPressedThisFrame)) ||
+                 (gamepad != null && gamepad.dpad.down.wasPressedThisFrame))
         {
             TrySwitchTo(2);
         }
@@ -247,13 +251,25 @@ public class PartyManager2D : MonoBehaviour
         PlayerController2D controller = current.GetComponent<PlayerController2D>();
         BasePlayableCombat2D combat = GetCurrentCombat();
         Vector2 moveInput = ReadMoveInput();
+        UpdateAimInputMode();
+        bool mouseAttackPressed = WasMouseAttackPressed();
+        bool mouseAttackReleased = WasMouseAttackReleased();
+        bool basicAttackPressed = WasKeyboardAttackPressed();
+
+        if (mouseAttackPressed || mouseAttackReleased || basicAttackPressed)
+        {
+            Debug.Log(
+                $"[공격 추적] activeCombat 확인: member={current.name}, combat={(combat != null ? combat.GetType().Name : "null")}, " +
+                $"state={(combat != null ? combat.CurrentCombatState.ToString() : "n/a")}, active={(combat != null && combat.isActiveAndEnabled && combat.gameObject.activeInHierarchy)}",
+                current);
+        }
 
         if (controller != null)
         {
             controller.SetMoveInput(moveInput);
             controller.SetRunHeld(IsRunHeld());
 
-            if (WasDashPressed())
+            if (WasDashPressed() && CanCurrentCombatAccept(BasePlayableCombat2D.CombatInputKind.Dash))
             {
                 controller.SetDashPressed();
             }
@@ -261,24 +277,34 @@ public class PartyManager2D : MonoBehaviour
 
         if (combat != null && combat.isActiveAndEnabled && combat.gameObject.activeInHierarchy)
         {
-            if (WasMouseAttackPressed())
+            combat.SetUseGamepadAimDirection(_useGamepadAimDirection);
+
+            if (mouseAttackPressed && combat.CanAcceptInput(BasePlayableCombat2D.CombatInputKind.HeavyAttack))
             {
+                Debug.Log($"[공격 추적] PartyManager 마우스 공격 입력 감지: pending 설정 전 state={combat.CurrentCombatState}", combat);
                 _isAttackPressPending = true;
                 _attackPressStartTime = Time.time;
                 _attackPressCombat = combat;
+                Debug.Log($"[공격 추적] _isAttackPressPending=true, pendingCombat={_attackPressCombat.GetType().Name}", combat);
                 combat.RequestHeavyAttackStart();
             }
 
-            if (WasMouseAttackReleased())
+            if (mouseAttackReleased)
             {
+                Debug.Log($"[공격 추적] PartyManager 마우스 공격 해제 감지: pending={_isAttackPressPending}", combat);
                 ResolveMouseAttackRelease(current);
             }
 
-            if (WasKeyboardAttackPressed())
+            if (basicAttackPressed)
             {
+                Debug.Log($"[공격 추적] PartyManager 공격 입력 감지: RequestAttack 호출 예정, state={combat.CurrentCombatState}", combat);
                 combat.RequestAttack();
             }
 
+        }
+        else if (mouseAttackPressed || mouseAttackReleased || basicAttackPressed)
+        {
+            Debug.LogWarning($"[공격 추적] 공격 입력은 감지됐지만 activeCombat이 유효하지 않습니다. member={current.name}", current);
         }
 
         if (WasUltimatePressed())
@@ -307,45 +333,116 @@ public class PartyManager2D : MonoBehaviour
 
     private Vector2 ReadMoveInput()
     {
-        if (Keyboard.current == null)
-        {
-            return Vector2.zero;
-        }
-
         float x = 0f;
         float y = 0f;
+        Keyboard keyboard = Keyboard.current;
 
-        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
+        if (keyboard != null && (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed))
         {
             x -= 1f;
         }
 
-        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
+        if (keyboard != null && (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed))
         {
             x += 1f;
         }
 
-        if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
+        if (keyboard != null && (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed))
         {
             y -= 1f;
         }
 
-        if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
+        if (keyboard != null && (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed))
         {
             y += 1f;
         }
 
-        return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
+        Vector2 keyboardInput = new Vector2(x, y);
+        Vector2 gamepadInput = ReadGamepadMoveInput();
+
+        return Vector2.ClampMagnitude(keyboardInput + gamepadInput, 1f);
+    }
+
+    private Vector2 ReadGamepadMoveInput()
+    {
+        return Gamepad.current != null ? Gamepad.current.leftStick.ReadValue() : Vector2.zero;
+    }
+
+    private void UpdateAimInputMode()
+    {
+        if (HasKeyboardMouseInput())
+        {
+            _useGamepadAimDirection = false;
+        }
+
+        if (HasGamepadInput())
+        {
+            _useGamepadAimDirection = true;
+        }
+    }
+
+    private bool HasKeyboardMouseInput()
+    {
+        Keyboard keyboard = Keyboard.current;
+        Mouse mouse = Mouse.current;
+        bool keyboardInput = keyboard != null &&
+                             (keyboard.aKey.isPressed ||
+                              keyboard.dKey.isPressed ||
+                              keyboard.sKey.isPressed ||
+                              keyboard.wKey.isPressed ||
+                              keyboard.leftArrowKey.isPressed ||
+                              keyboard.rightArrowKey.isPressed ||
+                              keyboard.downArrowKey.isPressed ||
+                              keyboard.upArrowKey.isPressed ||
+                              keyboard.leftShiftKey.isPressed ||
+                              keyboard.spaceKey.wasPressedThisFrame ||
+                              keyboard.enterKey.wasPressedThisFrame ||
+                              keyboard.eKey.wasPressedThisFrame ||
+                              keyboard.qKey.wasPressedThisFrame ||
+                              keyboard.digit1Key.wasPressedThisFrame ||
+                              keyboard.digit2Key.wasPressedThisFrame ||
+                              keyboard.digit3Key.wasPressedThisFrame ||
+                              keyboard.numpad1Key.wasPressedThisFrame ||
+                              keyboard.numpad2Key.wasPressedThisFrame ||
+                              keyboard.numpad3Key.wasPressedThisFrame);
+
+        bool mouseInput = mouse != null &&
+                          (mouse.delta.ReadValue().sqrMagnitude > 0.01f ||
+                           mouse.leftButton.wasPressedThisFrame ||
+                           mouse.leftButton.wasReleasedThisFrame);
+
+        return keyboardInput || mouseInput;
+    }
+
+    private bool HasGamepadInput()
+    {
+        Gamepad gamepad = Gamepad.current;
+        if (gamepad == null)
+        {
+            return false;
+        }
+
+        return ReadGamepadMoveInput().magnitude >= GamepadMoveAimThreshold ||
+               gamepad.buttonWest.wasPressedThisFrame ||
+               gamepad.buttonSouth.wasPressedThisFrame ||
+               gamepad.buttonNorth.wasPressedThisFrame ||
+               gamepad.rightShoulder.isPressed ||
+               gamepad.rightTrigger.wasPressedThisFrame ||
+               gamepad.dpad.up.wasPressedThisFrame ||
+               gamepad.dpad.right.wasPressedThisFrame ||
+               gamepad.dpad.down.wasPressedThisFrame;
     }
 
     private bool IsRunHeld()
     {
-        return Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed;
+        return (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed) ||
+               (Gamepad.current != null && Gamepad.current.rightShoulder.isPressed);
     }
 
     private bool WasDashPressed()
     {
-        return Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame;
+        return (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) ||
+               (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
     }
 
     private bool WasMouseAttackPressed()
@@ -360,7 +457,8 @@ public class PartyManager2D : MonoBehaviour
 
     private bool WasKeyboardAttackPressed()
     {
-        return Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame;
+        return (Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame) ||
+               (Gamepad.current != null && Gamepad.current.buttonWest.wasPressedThisFrame);
     }
 
     private void ResolveMouseAttackRelease(GameObject current)
@@ -404,18 +502,27 @@ public class PartyManager2D : MonoBehaviour
 
     private bool WasSkillPressed()
     {
-        return Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
+        return (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame) ||
+               (Gamepad.current != null && Gamepad.current.buttonNorth.wasPressedThisFrame);
     }
 
     private bool WasUltimatePressed()
     {
-        return Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame;
+        return (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame) ||
+               (Gamepad.current != null && Gamepad.current.rightTrigger.wasPressedThisFrame);
     }
 
     private void TrySwitchTo(int targetIndex)
     {
         if (_hasTriggeredGameOver)
         {
+            return;
+        }
+
+        BasePlayableCombat2D currentCombat = GetCurrentCombat();
+        if (currentCombat != null && !currentCombat.CanAcceptInput(BasePlayableCombat2D.CombatInputKind.Switch))
+        {
+            Debug.Log("[PartyManager2D] 현재 전투 상태에서는 캐릭터 교체를 할 수 없습니다.", currentCombat);
             return;
         }
 
@@ -434,6 +541,12 @@ public class PartyManager2D : MonoBehaviour
         }
 
         ForceSwitchTo(targetIndex, ignoreCooldown: false);
+    }
+
+    private bool CanCurrentCombatAccept(BasePlayableCombat2D.CombatInputKind inputKind)
+    {
+        BasePlayableCombat2D combat = GetCurrentCombat();
+        return combat == null || combat.CanAcceptInput(inputKind);
     }
 
     private void ForceSwitchTo(int targetIndex, bool ignoreCooldown)
@@ -466,11 +579,32 @@ public class PartyManager2D : MonoBehaviour
 
         SyncAllMemberPositions(inheritPosition);
         StopAllMemberRigidbodies();
+        ResetCombatStateBeforeSwitch(previousMember);
         SetSingleMemberVisible(targetIndex);
         _currentIndex = targetIndex;
         LogPartyVisibilityState("스위칭 후");
 
         Debug.Log($"[PartyManager2D] Switched to {nextMember.name} (slot {targetIndex + 1}).", this);
+    }
+
+    private void ResetCombatStateBeforeSwitch(GameObject member)
+    {
+        _isAttackPressPending = false;
+        _attackPressCombat = null;
+
+        if (member == null)
+        {
+            return;
+        }
+
+        BasePlayableCombat2D[] combatComponents = member.GetComponents<BasePlayableCombat2D>();
+        for (int i = 0; i < combatComponents.Length; i++)
+        {
+            if (combatComponents[i] != null)
+            {
+                combatComponents[i].ResetCombatState();
+            }
+        }
     }
 
     private void ForceActivateSingleMember(int activeIndex)

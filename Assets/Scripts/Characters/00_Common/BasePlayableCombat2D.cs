@@ -17,6 +17,27 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     [Serializable]
     public class ComboEvent : UnityEvent<int> { }
 
+    public enum CombatState
+    {
+        Ready,
+        BasicAttackRecovery,
+        HeavyStartup,
+        HeavyRecovery,
+        SkillActive,
+        UltimateActive,
+        Disabled
+    }
+
+    public enum CombatInputKind
+    {
+        BasicAttack,
+        HeavyAttack,
+        Skill,
+        Ultimate,
+        Dash,
+        Switch
+    }
+
     [Header("Ultimate Gauge")]
     [FormerlySerializedAs("maxUltimateGauge")]
     [SerializeField, Min(1f)] protected float ultimateMax = 100f;
@@ -114,10 +135,15 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     [SerializeField] private float combo2SlowDuration = 0.13f;
     [SerializeField] private float combo3SlowDuration = 0.17f;
     [SerializeField] private float heavySlowDuration = 0.24f;
+    [SerializeField, Min(0f)] private float basicAttackRecoveryDuration = 0.08f;
 
     [Header("Events")]
     [SerializeField] private ComboEvent onComboAttack;
     [SerializeField] private UnityEvent onHeavyAttack;
+
+    [Header("Attack Debug")]
+    [SerializeField] private bool drawAttackDebug = true;
+    [SerializeField, Min(0.05f)] private float attackDebugDuration = 0.5f;
 
     protected CharacterStats _stats;
     protected float ultimateGauge;
@@ -135,7 +161,17 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     private Coroutine _attackSlowRoutine;
     private Coroutine _temporaryHeavyAttackFeedbackRoutine;
     private Coroutine _heavyAttackRoutine;
+    private Coroutine _basicAttackRecoveryRoutine;
+    private Coroutine _ultimateActiveRoutine;
     private bool _isHeavyAttackLocked;
+    private CombatState _currentCombatState = CombatState.Ready;
+    private bool _useGamepadAimDirection;
+    private Vector2 _lastAttackDebugOrigin;
+    private Vector2 _lastAttackDebugDirection = Vector2.right;
+    private float _lastAttackDebugRadius;
+    private float _lastAttackDebugAngle;
+    private float _lastAttackDebugUntil;
+    private bool _hasAttackDebug;
 
     private CameraFollow2D _cameraShake;
     protected PlayerController2D _controller;
@@ -149,6 +185,31 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     public virtual float SkillCooldownRemaining => 0f;
     public virtual float SkillCooldownDuration => 0f;
     public bool IsSkillReady => SkillCooldownRemaining <= 0f;
+    public CombatState CurrentCombatState => isActiveAndEnabled ? _currentCombatState : CombatState.Disabled;
+    protected bool UsesGamepadAimDirection => _useGamepadAimDirection;
+
+    public bool CanAcceptInput(CombatInputKind kind)
+    {
+        CombatState state = CurrentCombatState;
+        switch (state)
+        {
+            case CombatState.Ready:
+                return true;
+            case CombatState.BasicAttackRecovery:
+                return kind == CombatInputKind.BasicAttack ||
+                       kind == CombatInputKind.Dash ||
+                       kind == CombatInputKind.Switch;
+            case CombatState.HeavyStartup:
+            case CombatState.HeavyRecovery:
+                return kind == CombatInputKind.Switch;
+            case CombatState.SkillActive:
+            case CombatState.UltimateActive:
+            case CombatState.Disabled:
+                return false;
+            default:
+                return false;
+        }
+    }
 
     protected virtual void Awake()
     {
@@ -211,7 +272,30 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
             _heavyAttackRoutine = null;
         }
 
+        if (_basicAttackRecoveryRoutine != null)
+        {
+            StopCoroutine(_basicAttackRecoveryRoutine);
+            _basicAttackRecoveryRoutine = null;
+        }
+
+        if (_ultimateActiveRoutine != null)
+        {
+            StopCoroutine(_ultimateActiveRoutine);
+            _ultimateActiveRoutine = null;
+        }
+
         _isHeavyAttackLocked = false;
+        _currentCombatState = CombatState.Disabled;
+    }
+
+    protected virtual void OnEnable()
+    {
+        if (!IsPrimaryCombat)
+        {
+            return;
+        }
+
+        ResetCombatState();
     }
 
     protected virtual void Update()
@@ -251,30 +335,61 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     public virtual void RequestAttack()
     {
+        bool canAcceptAttack = CanAcceptInput(CombatInputKind.BasicAttack);
+        Debug.Log($"[공격 추적] RequestAttack 진입: combat={GetType().Name}, CanAcceptInput={canAcceptAttack}, 현재 상태={CurrentCombatState}", this);
+
+        if (!canAcceptAttack)
+        {
+            Debug.Log($"[공격 추적] RequestAttack 차단: 현재 상태={CurrentCombatState}", this);
+            return;
+        }
+
+        Debug.Log("[공격 추적] RequestAttack 통과: TriggerComboAttack 호출", this);
         TriggerComboAttack();
     }
 
     public virtual void RequestSkill()
     {
+        if (!CanAcceptInput(CombatInputKind.Skill))
+        {
+            return;
+        }
+
         PlayerRangedAttack2D rangedAttack = GetComponent<PlayerRangedAttack2D>();
         if (rangedAttack != null)
         {
+            rangedAttack.SetUseGamepadAimDirection(_useGamepadAimDirection);
             rangedAttack.TryFire();
         }
     }
 
     public virtual void RequestUltimate()
     {
+        if (!CanAcceptInput(CombatInputKind.Ultimate))
+        {
+            return;
+        }
+
         TryTriggerUltimate();
     }
 
     public virtual void RequestHeavyAttackStart()
     {
+        if (!CanAcceptInput(CombatInputKind.HeavyAttack))
+        {
+            return;
+        }
+
         _attackPressStartTime = Time.time;
     }
 
     public virtual void RequestHeavyAttackRelease()
     {
+        if (!CanAcceptInput(CombatInputKind.HeavyAttack))
+        {
+            return;
+        }
+
         float heldTime = Time.time - _attackPressStartTime;
         if (heldTime >= heavyHoldThreshold)
         {
@@ -334,16 +449,121 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         }
 
         Debug.Log($"[{GetType().Name}] Ultimate used.", this);
+        MarkUltimateActiveBriefly();
         ExecuteUltimate();
         return true;
     }
 
     public virtual void ExecuteUltimate() { }
 
+    public void SetUseGamepadAimDirection(bool useGamepadAimDirection)
+    {
+        _useGamepadAimDirection = useGamepadAimDirection;
+        RefreshAttackPointPosition();
+    }
+
+    public virtual void ResetCombatState()
+    {
+        if (_basicAttackRecoveryRoutine != null)
+        {
+            StopCoroutine(_basicAttackRecoveryRoutine);
+            _basicAttackRecoveryRoutine = null;
+        }
+
+        if (_ultimateActiveRoutine != null)
+        {
+            StopCoroutine(_ultimateActiveRoutine);
+            _ultimateActiveRoutine = null;
+        }
+
+        _isHeavyAttackLocked = false;
+        _currentCombatState = CombatState.Ready;
+    }
+
+    protected void BeginSkillActive()
+    {
+        SetCombatState(CombatState.SkillActive);
+    }
+
+    protected void EndSkillActive()
+    {
+        if (_currentCombatState == CombatState.SkillActive)
+        {
+            SetCombatState(CombatState.Ready);
+        }
+    }
+
+    protected void SetCombatState(CombatState state)
+    {
+        if (!isActiveAndEnabled && state != CombatState.Disabled)
+        {
+            return;
+        }
+
+        _currentCombatState = state;
+    }
+
+    private void BeginBasicAttackRecovery()
+    {
+        if (basicAttackRecoveryDuration <= 0f)
+        {
+            return;
+        }
+
+        if (_basicAttackRecoveryRoutine != null)
+        {
+            StopCoroutine(_basicAttackRecoveryRoutine);
+        }
+
+        _basicAttackRecoveryRoutine = StartCoroutine(BasicAttackRecoveryRoutine());
+    }
+
+    private IEnumerator BasicAttackRecoveryRoutine()
+    {
+        SetCombatState(CombatState.BasicAttackRecovery);
+        yield return new WaitForSecondsRealtime(basicAttackRecoveryDuration);
+
+        if (_currentCombatState == CombatState.BasicAttackRecovery)
+        {
+            SetCombatState(CombatState.Ready);
+        }
+
+        _basicAttackRecoveryRoutine = null;
+    }
+
+    private void MarkUltimateActiveBriefly()
+    {
+        if (_ultimateActiveRoutine != null)
+        {
+            StopCoroutine(_ultimateActiveRoutine);
+        }
+
+        _ultimateActiveRoutine = StartCoroutine(UltimateActiveBriefRoutine());
+    }
+
+    private IEnumerator UltimateActiveBriefRoutine()
+    {
+        SetCombatState(CombatState.UltimateActive);
+        yield return null;
+
+        if (_currentCombatState == CombatState.UltimateActive)
+        {
+            SetCombatState(CombatState.Ready);
+        }
+
+        _ultimateActiveRoutine = null;
+    }
+
     private void UpdateAttackPointFromMouse()
     {
         if (attackPoint == null)
         {
+            return;
+        }
+
+        if (_useGamepadAimDirection)
+        {
+            UpdateAttackPointFromDirection(GetControllerAimDirection());
             return;
         }
 
@@ -380,15 +600,55 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         attackPoint.rotation = Quaternion.Euler(0f, 0f, aimAngle);
     }
 
+    private void RefreshAttackPointPosition()
+    {
+        if (attackPoint == null)
+        {
+            ResolveAttackPoint();
+        }
+
+        if (attackPoint == null)
+        {
+            return;
+        }
+
+        if (_useGamepadAimDirection)
+        {
+            UpdateAttackPointFromDirection(GetControllerAimDirection());
+            return;
+        }
+
+        UpdateAttackPointFromMouse();
+    }
+
+    private void UpdateAttackPointFromDirection(Vector2 aimDirection)
+    {
+        if (attackPoint == null)
+        {
+            return;
+        }
+
+        Vector2 safeDirection = aimDirection.sqrMagnitude > 0.0001f ? aimDirection.normalized : Vector2.right;
+        _lastAimDirection = safeDirection;
+        attackPoint.position = (Vector2)transform.position + (safeDirection * attackPointDistance);
+
+        float aimAngle = Mathf.Atan2(safeDirection.y, safeDirection.x) * Mathf.Rad2Deg;
+        attackPoint.rotation = Quaternion.Euler(0f, 0f, aimAngle);
+    }
+
     private void TriggerComboAttack()
     {
+        Debug.Log($"[공격 추적] TriggerComboAttack 진입: state={CurrentCombatState}, heavyLocked={_isHeavyAttackLocked}, time={Time.time:0.000}, nextCombo={_nextComboAttackTime:0.000}", this);
+
         if (_isHeavyAttackLocked)
         {
+            Debug.Log("[공격 추적] TriggerComboAttack return: 헤비 공격 잠금 상태", this);
             return;
         }
 
         if (Time.time < _nextComboAttackTime)
         {
+            Debug.Log($"[공격 추적] TriggerComboAttack return: 쿨다운 중 time={Time.time:0.000}, nextCombo={_nextComboAttackTime:0.000}", this);
             return;
         }
 
@@ -404,6 +664,8 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         AttackDefinition attackDef = GetComboAttackDef(_currentComboStep);
         int damage = GetBasicAttackDamage(_currentComboStep, attackDef);
         GetComboStepGeometry(_currentComboStep, out float range, out float angle);
+        Debug.Log($"[공격 추적] TriggerComboAttack 실행: comboStep={_currentComboStep}, damage={damage}, range={range:0.###}, angle={angle:0.###}", this);
+        BeginBasicAttackRecovery();
         ApplyAttackSlow(_currentComboStep);
         PerformAttack(range, damage, angle, attackDef.attribute, $"Combo {_currentComboStep}", _currentComboStep);
         onComboAttack?.Invoke(_currentComboStep);
@@ -431,6 +693,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     private IEnumerator HeavyAttackRoutine(float startupDelay, float recoveryDelay)
     {
         _isHeavyAttackLocked = true;
+        SetCombatState(CombatState.HeavyStartup);
 
         if (startupDelay > 0f)
         {
@@ -438,6 +701,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         }
 
         ExecuteHeavyAttackHit();
+        SetCombatState(CombatState.HeavyRecovery);
 
         if (recoveryDelay > 0f)
         {
@@ -446,10 +710,16 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
         _isHeavyAttackLocked = false;
         _heavyAttackRoutine = null;
+        SetCombatState(CombatState.Ready);
     }
 
     private void ExecuteHeavyAttackHit()
     {
+        if (_heavyAttackRoutine == null)
+        {
+            SetCombatState(CombatState.HeavyRecovery);
+        }
+
         _currentComboStep = 0;
         _lastComboTime = 0f;
 
@@ -467,6 +737,11 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         ApplyAttackSlow(comboStep: 0);
         PerformAttack(GetHeavyAttackRange(), heavyDmg, heavyAttackAngle, heavyAttackDef.attribute, "Heavy", 0);
         onHeavyAttack?.Invoke();
+
+        if (_heavyAttackRoutine == null)
+        {
+            SetCombatState(CombatState.Ready);
+        }
     }
 
     private IEnumerator TemporaryHeavyAttackScaleFeedback()
@@ -480,13 +755,20 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     private void PerformAttack(float range, int damage, float attackAngle, CombatAttribute attribute, string attackType, int comboStep = 1)
     {
+        Debug.Log($"[공격 추적] PerformAttack 실행: type={attackType}, range={range:0.###}, damage={damage}, state={CurrentCombatState}", this);
+
         if (!ResolveAttackPoint())
         {
+            Debug.Log("[공격 추적] PerformAttack 중단: AttackPoint를 찾지 못했습니다.", this);
             return;
         }
 
+        RefreshAttackPointPosition();
         Vector2 origin = attackPoint.position;
         Vector2 aimDirection = GetCurrentAimDirection();
+        float coneRange = MeleeHitResolver2D.GetConeRange(attackPointDistance, range);
+        RecordAttackDebug(origin, aimDirection, coneRange, attackAngle);
+        Debug.Log($"[공격 추적] PerformAttack 판정 호출: origin={origin}, aim={aimDirection}, targetLayer={targetLayer.value}", this);
         int damagedCount = MeleeHitResolver2D.DealDamageInCone(
             origin,
             aimDirection,
@@ -502,6 +784,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
         if (damagedCount > 0)
         {
+            Debug.Log($"[공격 추적] PerformAttack 적중: damagedCount={damagedCount}", this);
             ApplyKnockbackToHitTargets(origin, aimDirection, range, attackAngle, GetKnockbackForce(comboStep), GetStaggerDuration(comboStep));
             PlayHitSfx(isMelee: true);
             TriggerHitStop(GetHitStopDuration(comboStep));
@@ -512,6 +795,34 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
                 AddUltimateGauge(basicAttackHitGain);
             }
         }
+        else
+        {
+            Debug.Log("[공격 추적] PerformAttack 종료: 적중 대상 없음", this);
+        }
+    }
+
+    private void RecordAttackDebug(Vector2 origin, Vector2 aimDirection, float radius, float attackAngle)
+    {
+        if (!drawAttackDebug)
+        {
+            return;
+        }
+
+        Vector2 safeDirection = aimDirection.sqrMagnitude > 0.0001f ? aimDirection.normalized : Vector2.right;
+        _lastAttackDebugOrigin = origin;
+        _lastAttackDebugDirection = safeDirection;
+        _lastAttackDebugRadius = radius;
+        _lastAttackDebugAngle = attackAngle;
+        _lastAttackDebugUntil = Time.time + attackDebugDuration;
+        _hasAttackDebug = true;
+
+        Debug.DrawLine(transform.position, origin, Color.yellow, attackDebugDuration);
+        Debug.DrawLine(origin, origin + safeDirection * radius, Color.red, attackDebugDuration);
+
+        Vector2 leftEdge = Quaternion.Euler(0f, 0f, -attackAngle * 0.5f) * safeDirection;
+        Vector2 rightEdge = Quaternion.Euler(0f, 0f, attackAngle * 0.5f) * safeDirection;
+        Debug.DrawLine(origin, origin + leftEdge * radius, Color.cyan, attackDebugDuration);
+        Debug.DrawLine(origin, origin + rightEdge * radius, Color.cyan, attackDebugDuration);
     }
 
     private bool ResolveAttackPoint()
@@ -541,6 +852,11 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     protected Vector2 GetCurrentAimDirection()
     {
+        if (_useGamepadAimDirection)
+        {
+            return GetControllerAimDirection();
+        }
+
         Vector2 aimDirection = _lastAimDirection;
         if (attackPoint != null)
         {
@@ -557,6 +873,26 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         }
 
         return aimDirection;
+    }
+
+    private Vector2 GetControllerAimDirection()
+    {
+        if (_controller != null)
+        {
+            Vector2 lastMoveDirection = _controller.LastMoveDirection;
+            if (lastMoveDirection.sqrMagnitude > 0.0001f)
+            {
+                return lastMoveDirection.normalized;
+            }
+        }
+
+        float facingX = transform.localScale.x;
+        if (Mathf.Abs(facingX) > 0.0001f)
+        {
+            return facingX >= 0f ? Vector2.right : Vector2.left;
+        }
+
+        return Vector2.right;
     }
 
     protected virtual int GetMaxComboStep()
@@ -873,6 +1209,30 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         if (!IsPrimaryCombat)
         {
             return;
+        }
+
+        if (drawAttackDebug && _hasAttackDebug && Application.isPlaying && Time.time <= _lastAttackDebugUntil)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawLine(transform.position, _lastAttackDebugOrigin);
+            Gizmos.DrawWireSphere(_lastAttackDebugOrigin, 0.08f);
+
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(_lastAttackDebugOrigin, _lastAttackDebugOrigin + _lastAttackDebugDirection * _lastAttackDebugRadius);
+            Gizmos.DrawWireSphere(_lastAttackDebugOrigin, _lastAttackDebugRadius);
+
+            Vector2 leftDebugEdge = Quaternion.Euler(0f, 0f, -_lastAttackDebugAngle * 0.5f) * _lastAttackDebugDirection;
+            Vector2 rightDebugEdge = Quaternion.Euler(0f, 0f, _lastAttackDebugAngle * 0.5f) * _lastAttackDebugDirection;
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawLine(_lastAttackDebugOrigin, _lastAttackDebugOrigin + leftDebugEdge * _lastAttackDebugRadius);
+            Gizmos.DrawLine(_lastAttackDebugOrigin, _lastAttackDebugOrigin + rightDebugEdge * _lastAttackDebugRadius);
+        }
+
+        if (attackPoint != null)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(attackPoint.position, 0.06f);
+            Gizmos.DrawLine(transform.position, attackPoint.position);
         }
 
         Vector3 origin = transform.position;

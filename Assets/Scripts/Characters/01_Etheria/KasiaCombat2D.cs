@@ -52,6 +52,11 @@ public class KasiaCombat2D : BasePlayableCombat2D
 
     public override void RequestSkill()
     {
+        if (!CanAcceptInput(CombatInputKind.Skill))
+        {
+            return;
+        }
+
         if (_skillRoutine != null || Time.time < _nextSkillTime)
         {
             return;
@@ -94,6 +99,8 @@ public class KasiaCombat2D : BasePlayableCombat2D
 
     private IEnumerator ChargeSlashRoutine()
     {
+        BeginSkillActive();
+
         Vector2 direction = GetCurrentAimDirection();
         if (direction.sqrMagnitude <= 0.0001f)
         {
@@ -104,6 +111,7 @@ public class KasiaCombat2D : BasePlayableCombat2D
         yield return DashRoutine(direction);
         yield return ChargeSlashHitsRoutine(direction);
         _skillRoutine = null;
+        EndSkillActive();
     }
 
     private IEnumerator DashRoutine(Vector2 direction)

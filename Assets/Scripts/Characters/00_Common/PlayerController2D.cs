@@ -30,6 +30,9 @@ public class PlayerController2D : MonoBehaviour
 
     // 0~1 range. Character combat scripts use this to apply temporary movement slowdowns.
     public float AttackSpeedMultiplier { get; set; } = 1f;
+    public Vector2 LastMoveDirection => _lastNonZeroMoveDirection.sqrMagnitude > 0.0001f
+        ? _lastNonZeroMoveDirection.normalized
+        : GetFacingDirection();
 
     private void Awake()
     {
@@ -107,5 +110,16 @@ public class PlayerController2D : MonoBehaviour
         _isDashing = true;
         _dashEndTime = Time.time + Mathf.Max(0.01f, dashDuration);
         _nextDashTime = Time.time + Mathf.Max(0.01f, dashCooldown);
+    }
+
+    private Vector2 GetFacingDirection()
+    {
+        float x = transform.localScale.x;
+        if (Mathf.Abs(x) > 0.0001f)
+        {
+            return x >= 0f ? Vector2.right : Vector2.left;
+        }
+
+        return Vector2.right;
     }
 }

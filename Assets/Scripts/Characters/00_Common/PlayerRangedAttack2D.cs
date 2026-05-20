@@ -193,8 +193,9 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
             Debug.LogWarning("[DoomGun] backstepWallLayer가 비어있습니다. 백스텝 시 벽 관통이 발생할 수 있습니다.", this);
     }
 
-    private void OnEnable()
+    protected override void OnEnable()
     {
+        base.OnEnable();
         Debug.Log($"[PlayerRangedAttack2D] OnEnable ← {gameObject.name}", this);
         // fireAction은 PartyManager2D가 E키를 라우팅해 TryFire()를 직접 호출함.
         // 자체 Enable/구독 없이 외부 호출 전담 구조로 변경.
@@ -453,6 +454,11 @@ public class PlayerRangedAttack2D : BasePlayableCombat2D
     // ─────────────────────────────────────────────
     private Vector2 GetAimDirection(Vector2 fromPosition)
     {
+        if (UsesGamepadAimDirection)
+        {
+            return GetCurrentAimDirection();
+        }
+
         _mainCamera ??= Camera.main;
 
         if (_mainCamera == null || Mouse.current == null)
