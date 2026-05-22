@@ -22,6 +22,7 @@ public class PlayerController2D : MonoBehaviour
     private Vector2 _lastNonZeroMoveDirection = Vector2.down;
     private bool _isSprinting;
     private bool _isDashing;
+    private bool _hasLastNonZeroMoveDirection;
     private Vector2 _dashDirection;
     private float _dashEndTime;
     private float _nextDashTime;
@@ -30,9 +31,22 @@ public class PlayerController2D : MonoBehaviour
 
     // 0~1 range. Character combat scripts use this to apply temporary movement slowdowns.
     public float AttackSpeedMultiplier { get; set; } = 1f;
+    public Vector2 CurrentMoveInput => _moveInput;
     public Vector2 LastMoveDirection => _lastNonZeroMoveDirection.sqrMagnitude > 0.0001f
         ? _lastNonZeroMoveDirection.normalized
         : GetFacingDirection();
+
+    public bool TryGetLastMoveDirection(out Vector2 direction)
+    {
+        if (_hasLastNonZeroMoveDirection && _lastNonZeroMoveDirection.sqrMagnitude > 0.0001f)
+        {
+            direction = _lastNonZeroMoveDirection.normalized;
+            return true;
+        }
+
+        direction = Vector2.zero;
+        return false;
+    }
 
     private void Awake()
     {
@@ -82,6 +96,7 @@ public class PlayerController2D : MonoBehaviour
         if (_moveInput.sqrMagnitude > 0.0001f)
         {
             _lastNonZeroMoveDirection = _moveInput.normalized;
+            _hasLastNonZeroMoveDirection = true;
         }
     }
 

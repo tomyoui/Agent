@@ -64,6 +64,7 @@ public class KasiaCombat2D : BasePlayableCombat2D
 
         _nextSkillTime = Time.time + Mathf.Max(0f, GetSkillCooldown());
         _skillRoutine = StartCoroutine(ChargeSlashRoutine());
+        LogCombatStabilitySnapshot("스킬 직후");
     }
 
     protected override int GetMaxComboStep()
@@ -112,6 +113,7 @@ public class KasiaCombat2D : BasePlayableCombat2D
         yield return ChargeSlashHitsRoutine(direction);
         _skillRoutine = null;
         EndSkillActive();
+        LogCombatStabilitySnapshot("카샤 스킬 종료 직후");
     }
 
     private IEnumerator DashRoutine(Vector2 direction)
@@ -124,6 +126,7 @@ public class KasiaCombat2D : BasePlayableCombat2D
         if (_controller != null)
         {
             _controller.IsVelocityLocked = true;
+            LogCombatStabilitySnapshot("카샤 스킬 대시 잠금 직후");
         }
 
         while (elapsed < duration)
@@ -152,6 +155,7 @@ public class KasiaCombat2D : BasePlayableCombat2D
         if (_controller != null)
         {
             _controller.IsVelocityLocked = false;
+            LogCombatStabilitySnapshot("카샤 스킬 대시 해제 직후");
         }
     }
 

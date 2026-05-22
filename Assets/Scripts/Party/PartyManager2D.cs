@@ -37,6 +37,8 @@ public class PartyManager2D : MonoBehaviour
     private bool _isAttackPressPending;
     private float _attackPressStartTime;
     private BasePlayableCombat2D _attackPressCombat;
+    private bool _attackPressStartedByGamepad;
+    private float _nextGamepadAttackPerformedLogTime;
     private bool _loggedPartySceneState;
     private bool _useGamepadAimDirection;
 
@@ -245,6 +247,7 @@ public class PartyManager2D : MonoBehaviour
             MaybeLogInputDebug(Vector2.zero, null, null);
             _isAttackPressPending = false;
             _attackPressCombat = null;
+            _attackPressStartedByGamepad = false;
             return;
         }
 
@@ -252,16 +255,23 @@ public class PartyManager2D : MonoBehaviour
         BasePlayableCombat2D combat = GetCurrentCombat();
         Vector2 moveInput = ReadMoveInput();
         UpdateAimInputMode();
-        bool mouseAttackPressed = WasMouseAttackPressed();
-        bool mouseAttackReleased = WasMouseAttackReleased();
+        bool gamepadAttackStarted = WasGamepadAttackPressed();
+        bool gamepadAttackPerformed = IsGamepadAttackHeld();
+        bool attackHoldPressed = WasAttackHoldPressed();
+        bool attackHoldReleased = WasAttackHoldReleased();
         bool basicAttackPressed = WasKeyboardAttackPressed();
 
-        if (mouseAttackPressed || mouseAttackReleased || basicAttackPressed)
+        if (attackHoldPressed || attackHoldReleased || basicAttackPressed)
         {
             Debug.Log(
                 $"[공격 추적] activeCombat 확인: member={current.name}, combat={(combat != null ? combat.GetType().Name : "null")}, " +
                 $"state={(combat != null ? combat.CurrentCombatState.ToString() : "n/a")}, active={(combat != null && combat.isActiveAndEnabled && combat.gameObject.activeInHierarchy)}",
                 current);
+        }
+
+        if (gamepadAttackStarted)
+        {
+            Debug.Log($"[패드 공격 입력] X started time={Time.time:0.000}, state={(combat != null ? combat.CurrentCombatState.ToString() : "n/a")}", combat != null ? combat : current);
         }
 
         if (controller != null)
@@ -272,6 +282,7 @@ public class PartyManager2D : MonoBehaviour
             if (WasDashPressed() && CanCurrentCombatAccept(BasePlayableCombat2D.CombatInputKind.Dash))
             {
                 controller.SetDashPressed();
+                combat?.LogCombatStabilitySnapshot("대시 입력 직후");
             }
         }
 
@@ -279,20 +290,32 @@ public class PartyManager2D : MonoBehaviour
         {
             combat.SetUseGamepadAimDirection(_useGamepadAimDirection);
 
-            if (mouseAttackPressed && combat.CanAcceptInput(BasePlayableCombat2D.CombatInputKind.HeavyAttack))
+            if (attackHoldPressed && combat.CanAcceptInput(BasePlayableCombat2D.CombatInputKind.HeavyAttack))
             {
-                Debug.Log($"[공격 추적] PartyManager 마우스 공격 입력 감지: pending 설정 전 state={combat.CurrentCombatState}", combat);
+                Debug.Log($"[공격 추적] PartyManager 공격 홀드 시작: pending 설정 전 state={combat.CurrentCombatState}", combat);
                 _isAttackPressPending = true;
                 _attackPressStartTime = Time.time;
                 _attackPressCombat = combat;
+                _attackPressStartedByGamepad = gamepadAttackStarted;
+                _nextGamepadAttackPerformedLogTime = Time.time;
                 Debug.Log($"[공격 추적] _isAttackPressPending=true, pendingCombat={_attackPressCombat.GetType().Name}", combat);
                 combat.RequestHeavyAttackStart();
             }
 
-            if (mouseAttackReleased)
+            if (_isAttackPressPending &&
+                _attackPressStartedByGamepad &&
+                gamepadAttackPerformed &&
+                Time.time >= _nextGamepadAttackPerformedLogTime)
             {
-                Debug.Log($"[공격 추적] PartyManager 마우스 공격 해제 감지: pending={_isAttackPressPending}", combat);
-                ResolveMouseAttackRelease(current);
+                float holdTime = Time.time - _attackPressStartTime;
+                Debug.Log($"[패드 공격 입력] X performed time={Time.time:0.000}, holdTime={holdTime:0.000}, heavyThreshold={heavyAttackInputThreshold:0.000}", combat);
+                _nextGamepadAttackPerformedLogTime = Time.time + 0.25f;
+            }
+
+            if (attackHoldReleased)
+            {
+                Debug.Log($"[공격 추적] PartyManager 공격 홀드 해제: pending={_isAttackPressPending}", combat);
+                ResolveAttackHoldRelease(current);
             }
 
             if (basicAttackPressed)
@@ -302,7 +325,7 @@ public class PartyManager2D : MonoBehaviour
             }
 
         }
-        else if (mouseAttackPressed || mouseAttackReleased || basicAttackPressed)
+        else if (attackHoldPressed || attackHoldReleased || basicAttackPressed)
         {
             Debug.LogWarning($"[공격 추적] 공격 입력은 감지됐지만 activeCombat이 유효하지 않습니다. member={current.name}", current);
         }
@@ -424,6 +447,8 @@ public class PartyManager2D : MonoBehaviour
 
         return ReadGamepadMoveInput().magnitude >= GamepadMoveAimThreshold ||
                gamepad.buttonWest.wasPressedThisFrame ||
+               gamepad.buttonWest.isPressed ||
+               gamepad.buttonWest.wasReleasedThisFrame ||
                gamepad.buttonSouth.wasPressedThisFrame ||
                gamepad.buttonNorth.wasPressedThisFrame ||
                gamepad.rightShoulder.isPressed ||
@@ -445,6 +470,16 @@ public class PartyManager2D : MonoBehaviour
                (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
     }
 
+    private bool WasAttackHoldPressed()
+    {
+        return WasMouseAttackPressed() || WasGamepadAttackPressed();
+    }
+
+    private bool WasAttackHoldReleased()
+    {
+        return WasMouseAttackReleased() || WasGamepadAttackReleased();
+    }
+
     private bool WasMouseAttackPressed()
     {
         return Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
@@ -455,45 +490,89 @@ public class PartyManager2D : MonoBehaviour
         return Mouse.current != null && Mouse.current.leftButton.wasReleasedThisFrame;
     }
 
-    private bool WasKeyboardAttackPressed()
+    private bool WasGamepadAttackPressed()
     {
-        return (Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame) ||
-               (Gamepad.current != null && Gamepad.current.buttonWest.wasPressedThisFrame);
+        return Gamepad.current != null && Gamepad.current.buttonWest.wasPressedThisFrame;
     }
 
-    private void ResolveMouseAttackRelease(GameObject current)
+    private bool IsGamepadAttackHeld()
+    {
+        return Gamepad.current != null && Gamepad.current.buttonWest.isPressed;
+    }
+
+    private bool WasGamepadAttackReleased()
+    {
+        return Gamepad.current != null && Gamepad.current.buttonWest.wasReleasedThisFrame;
+    }
+
+    private bool WasKeyboardAttackPressed()
+    {
+        return Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame;
+    }
+
+    private void ResolveAttackHoldRelease(GameObject current)
     {
         if (current == null || !current.activeInHierarchy)
         {
             Debug.Log("[PartyManager2D] 비활성 캐릭터 대상 공격 입력 해제 무시", this);
             _isAttackPressPending = false;
             _attackPressCombat = null;
+            _attackPressStartedByGamepad = false;
             return;
         }
 
         if (!_isAttackPressPending || _attackPressCombat == null)
         {
+            if (_attackPressStartedByGamepad)
+            {
+                Debug.Log($"[패드 공격 입력] X canceled time={Time.time:0.000}, holdTime=n/a, heavyThreshold={heavyAttackInputThreshold:0.000}, pending=false", this);
+            }
+
             _isAttackPressPending = false;
             _attackPressCombat = null;
+            _attackPressStartedByGamepad = false;
             return;
         }
 
         float heldTime = Time.time - _attackPressStartTime;
         BasePlayableCombat2D pressedCombat = _attackPressCombat;
+        bool startedByGamepad = _attackPressStartedByGamepad;
         _isAttackPressPending = false;
         _attackPressCombat = null;
+        _attackPressStartedByGamepad = false;
 
         if (pressedCombat == null || !pressedCombat.isActiveAndEnabled || !pressedCombat.gameObject.activeInHierarchy)
         {
+            if (startedByGamepad)
+            {
+                Debug.Log($"[패드 공격 입력] X canceled time={Time.time:0.000}, holdTime={heldTime:0.000}, heavyThreshold={heavyAttackInputThreshold:0.000}");
+                Debug.Log("[패드 공격 입력] 결과: 무시", this);
+            }
+
             Debug.Log("[PartyManager2D] 비활성 전투 컴포넌트의 공격 입력 해제 무시", this);
             return;
         }
 
+        if (startedByGamepad)
+        {
+            Debug.Log($"[패드 공격 입력] X canceled time={Time.time:0.000}, holdTime={heldTime:0.000}, heavyThreshold={heavyAttackInputThreshold:0.000}", pressedCombat);
+        }
+
         if (heldTime >= heavyAttackInputThreshold)
         {
+            if (startedByGamepad)
+            {
+                Debug.Log("[패드 공격 입력] 결과: 강공", pressedCombat);
+            }
+
             Debug.Log($"[PartyManager2D] Heavy Attack Release: {current.name} held={heldTime:0.00}s", current);
             pressedCombat.RequestHeavyAttackRelease();
             return;
+        }
+
+        if (startedByGamepad)
+        {
+            Debug.Log("[패드 공격 입력] 결과: 평타", pressedCombat);
         }
 
         Debug.Log($"[PartyManager2D] Short Click Attack: {current.name} held={heldTime:0.00}s", current);
@@ -585,12 +664,14 @@ public class PartyManager2D : MonoBehaviour
         LogPartyVisibilityState("스위칭 후");
 
         Debug.Log($"[PartyManager2D] Switched to {nextMember.name} (slot {targetIndex + 1}).", this);
+        GetCurrentCombat()?.LogCombatStabilitySnapshot("교체 직후");
     }
 
     private void ResetCombatStateBeforeSwitch(GameObject member)
     {
         _isAttackPressPending = false;
         _attackPressCombat = null;
+        _attackPressStartedByGamepad = false;
 
         if (member == null)
         {

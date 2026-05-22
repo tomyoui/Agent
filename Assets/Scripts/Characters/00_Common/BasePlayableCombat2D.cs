@@ -83,6 +83,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     [Header("Aim")]
     [SerializeField] private float attackPointDistance = 0.9f;
+    [SerializeField, Min(0f)] private float gamepadAutoAimRangePadding = 0.25f;
 
     [Header("Audio")]
     [SerializeField] private AudioSource hitAudioSource;
@@ -172,9 +173,12 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
     private float _lastAttackDebugAngle;
     private float _lastAttackDebugUntil;
     private bool _hasAttackDebug;
+    private Vector2 _lastAutoAimDebugTargetPosition;
+    private bool _hasAutoAimDebugTarget;
 
     private CameraFollow2D _cameraShake;
     protected PlayerController2D _controller;
+    private Rigidbody2D _body;
 
     public float UltimateGauge => ultimateGauge;
     public float UltimateMax => ultimateMax;
@@ -237,6 +241,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         }
 
         _controller = GetComponent<PlayerController2D>();
+        _body = GetComponent<Rigidbody2D>();
 
         if (targetLayer.value == 0)
         {
@@ -346,6 +351,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
         Debug.Log("[공격 추적] RequestAttack 통과: TriggerComboAttack 호출", this);
         TriggerComboAttack();
+        LogCombatStabilitySnapshot("공격 직후");
     }
 
     public virtual void RequestSkill()
@@ -360,6 +366,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         {
             rangedAttack.SetUseGamepadAimDirection(_useGamepadAimDirection);
             rangedAttack.TryFire();
+            LogCombatStabilitySnapshot("스킬 직후");
         }
     }
 
@@ -371,6 +378,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         }
 
         TryTriggerUltimate();
+        LogCombatStabilitySnapshot("궁극기 직후");
     }
 
     public virtual void RequestHeavyAttackStart()
@@ -478,6 +486,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
         _isHeavyAttackLocked = false;
         _currentCombatState = CombatState.Ready;
+        LogCombatStabilitySnapshot("ResetCombatState 직후");
     }
 
     protected void BeginSkillActive()
@@ -501,6 +510,24 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         }
 
         _currentCombatState = state;
+    }
+
+    public void LogCombatStabilitySnapshot(string context)
+    {
+        PlayerController2D controller = _controller != null ? _controller : GetComponent<PlayerController2D>();
+        Rigidbody2D body = _body != null ? _body : GetComponent<Rigidbody2D>();
+        GameObject activeMember = PartyManager2D.Instance != null ? PartyManager2D.Instance.CurrentMember : null;
+
+        bool isVelocityLocked = controller != null && controller.IsVelocityLocked;
+        Vector2 currentMoveInput = controller != null ? controller.CurrentMoveInput : Vector2.zero;
+        Vector2 velocity = body != null ? body.linearVelocity : Vector2.zero;
+        string activeName = activeMember != null ? activeMember.name : gameObject.name;
+
+        Debug.Log(
+            $"[전투 안정화] {context}: activeMember={activeName}, combat={GetType().Name}, " +
+            $"CombatState={CurrentCombatState}, IsVelocityLocked={isVelocityLocked}, " +
+            $"CurrentMoveInput={currentMoveInput}, Rigidbody2D.velocity={velocity}",
+            this);
     }
 
     private void BeginBasicAttackRecovery()
@@ -823,6 +850,11 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         Vector2 rightEdge = Quaternion.Euler(0f, 0f, attackAngle * 0.5f) * safeDirection;
         Debug.DrawLine(origin, origin + leftEdge * radius, Color.cyan, attackDebugDuration);
         Debug.DrawLine(origin, origin + rightEdge * radius, Color.cyan, attackDebugDuration);
+
+        if (_hasAutoAimDebugTarget)
+        {
+            Debug.DrawLine(transform.position, _lastAutoAimDebugTargetPosition, Color.green, attackDebugDuration);
+        }
     }
 
     private bool ResolveAttackPoint()
@@ -877,12 +909,26 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     private Vector2 GetControllerAimDirection()
     {
+        if (TryGetClosestAutoAimDirection(out Vector2 autoAimDirection, out Vector2 targetPosition))
+        {
+            _lastAutoAimDebugTargetPosition = targetPosition;
+            _hasAutoAimDebugTarget = true;
+            return autoAimDirection;
+        }
+
+        _hasAutoAimDebugTarget = false;
+
         if (_controller != null)
         {
-            Vector2 lastMoveDirection = _controller.LastMoveDirection;
-            if (lastMoveDirection.sqrMagnitude > 0.0001f)
+            Vector2 currentMoveInput = _controller.CurrentMoveInput;
+            if (currentMoveInput.sqrMagnitude > 0.0001f)
             {
-                return lastMoveDirection.normalized;
+                return currentMoveInput.normalized;
+            }
+
+            if (_controller.TryGetLastMoveDirection(out Vector2 lastMoveDirection))
+            {
+                return lastMoveDirection;
             }
         }
 
@@ -892,7 +938,78 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
             return facingX >= 0f ? Vector2.right : Vector2.left;
         }
 
+        if (_lastAimDirection.sqrMagnitude > 0.0001f)
+        {
+            return _lastAimDirection.normalized;
+        }
+
         return Vector2.right;
+    }
+
+    private bool TryGetClosestAutoAimDirection(out Vector2 direction, out Vector2 targetPosition)
+    {
+        direction = Vector2.zero;
+        targetPosition = Vector2.zero;
+
+        if (targetLayer.value == 0)
+        {
+            return false;
+        }
+
+        Vector2 origin = transform.position;
+        float radius = Mathf.Max(
+            GetHeavyAttackRange(),
+            Mathf.Max(combo1Range, Mathf.Max(combo2Range, combo3Range))) +
+            attackPointDistance +
+            gamepadAutoAimRangePadding;
+
+        Collider2D[] hits = Physics2D.OverlapCircleAll(origin, radius, targetLayer);
+        Collider2D closestHit = null;
+        float closestDistanceSqr = float.MaxValue;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider2D hit = hits[i];
+            if (hit == null || hit.transform == transform || hit.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            IDamageable damageable = hit.GetComponentInParent<IDamageable>();
+            if (damageable == null && hit.transform.root != null)
+            {
+                damageable = hit.transform.root.GetComponentInChildren<IDamageable>();
+            }
+
+            if (damageable == null)
+            {
+                continue;
+            }
+
+            Vector2 closestPoint = hit.ClosestPoint(origin);
+            Vector2 toTarget = closestPoint - origin;
+            if (toTarget.sqrMagnitude <= 0.0001f)
+            {
+                toTarget = (Vector2)hit.transform.position - origin;
+                closestPoint = hit.transform.position;
+            }
+
+            float distanceSqr = toTarget.sqrMagnitude;
+            if (distanceSqr < closestDistanceSqr)
+            {
+                closestDistanceSqr = distanceSqr;
+                closestHit = hit;
+                targetPosition = closestPoint;
+            }
+        }
+
+        if (closestHit == null)
+        {
+            return false;
+        }
+
+        direction = (targetPosition - origin).normalized;
+        return direction.sqrMagnitude > 0.0001f;
     }
 
     protected virtual int GetMaxComboStep()
@@ -1226,6 +1343,13 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
             Gizmos.color = Color.cyan;
             Gizmos.DrawLine(_lastAttackDebugOrigin, _lastAttackDebugOrigin + leftDebugEdge * _lastAttackDebugRadius);
             Gizmos.DrawLine(_lastAttackDebugOrigin, _lastAttackDebugOrigin + rightDebugEdge * _lastAttackDebugRadius);
+
+            if (_hasAutoAimDebugTarget)
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawLine(transform.position, _lastAutoAimDebugTargetPosition);
+                Gizmos.DrawWireSphere(_lastAutoAimDebugTargetPosition, 0.08f);
+            }
         }
 
         if (attackPoint != null)
