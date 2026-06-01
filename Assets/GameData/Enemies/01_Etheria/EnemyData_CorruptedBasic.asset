@@ -16,10 +16,10 @@ MonoBehaviour:
   displayName: Corrupted Basic
   maxHP: 500
   moveSpeed: 2.5
-  attackDamage: 3
+  attackDamage: 12
   attackRange: 2.2
   attackWindup: 0.5
-  attackCooldown: 1
+  attackCooldown: 0.25
   deathVfxPrefab: {fileID: 0}
   deathVfxLifetime: 0.5
   deathSfx: {fileID: 0}

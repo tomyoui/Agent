@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// 플레이어를 추적하고 범위 내 진입 시 근접 공격하는 적 AI
+// 플레이어를 추적하고 전조-돌진-회복 구조로 공격하는 기본 침식체 AI
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody2D))]
 public class EnemyMelee2D : MonoBehaviour
@@ -9,7 +9,7 @@ public class EnemyMelee2D : MonoBehaviour
     [SerializeField] private EnemyData enemyData;
 
     [Header("Target")]
-    [Tooltip("추적할 대상 Transform (미할당 시 playerTag로 자동 탐색)")]
+    [Tooltip("추적 대상 Transform. 비어 있으면 playerTag로 자동 탐색")]
     private Transform target;
     [Tooltip("플레이어를 자동 탐색할 때 사용하는 태그")]
     [SerializeField] private string playerTag = "Player";
@@ -24,24 +24,24 @@ public class EnemyMelee2D : MonoBehaviour
     [SerializeField] private float separationWeight = 0.75f;
 
     [Header("Attack")]
-    [Tooltip("공격이 시작되는 거리")]
+    [Tooltip("공격을 준비하기 시작하는 거리")]
     [SerializeField] private float attackRange = 1.0f;
-    [Tooltip("공격 전 선딜 시간 (초)")]
-    [SerializeField] private float attackWindup = 0.4f;
-    [Tooltip("공격 후 쿨다운 시간 (초)")]
-    [SerializeField] private float attackCooldown = 1.0f;
+    [Tooltip("돌진 전 멈춰서 전조를 보여주는 시간(초)")]
+    [SerializeField] private float attackWindup = 0.5f;
+    [Tooltip("회복이 끝난 뒤 다음 공격까지 기다리는 시간(초)")]
+    [SerializeField] private float attackCooldown = 0.25f;
     [Tooltip("1회 공격 데미지")]
-    [SerializeField] private int attackDamage = 5;
-    [Tooltip("실제 타격 원 반경")]
+    [SerializeField] private int attackDamage = 12;
+    [Tooltip("돌진 중 전방 피해 판정 반경")]
     [SerializeField] private float hitRadius = 0.6f;
-    [Tooltip("공격 방향으로 판정 중심을 미는 거리")]
-    [SerializeField] private float hitForwardOffset = 0.9f;
-    [Tooltip("공격 준비 후 고정 방향으로 짧게 돌진하는 거리")]
-    [SerializeField] private float lungeDistance = 0.9f;
-    [Tooltip("돌진에 걸리는 시간 (초)")]
-    [SerializeField] private float lungeDuration = 0.18f;
-    [Tooltip("돌진 공격 후 추가 회복 시간 (초)")]
-    [SerializeField] private float attackRecoveryTime = 0.28f;
+    [Tooltip("돌진 방향 앞쪽으로 피해 판정 중심을 미는 거리")]
+    [SerializeField] private float hitForwardOffset = 0.75f;
+    [Tooltip("전조 때 고정한 방향으로 짧게 돌진하는 거리")]
+    [SerializeField] private float lungeDistance = 1.8f;
+    [Tooltip("돌진에 걸리는 시간(초)")]
+    [SerializeField] private float lungeDuration = 0.22f;
+    [Tooltip("돌진 뒤 멈춰서 반격 빈틈을 주는 시간(초)")]
+    [SerializeField] private float attackRecoveryTime = 0.5f;
 
     private Rigidbody2D _rb;
     private bool _isPreparingAttack;
@@ -50,14 +50,16 @@ public class EnemyMelee2D : MonoBehaviour
     private float _lungeStartTime;
     private float _lungeEndTime;
     private float _recoveryEndTime;
+    private float _nextAttackReadyTime;
     private Vector2 _cachedAttackDirection = Vector2.right;
     private Vector2 _lungeStartPosition;
     private Vector2 _lungeEndPosition;
     private Vector2 _lastHitCenter;
     private float _lastHitRadius;
     private bool _hasLastHit;
+    private bool _hasDamagedThisLunge;
 
-    // 넉백 중 AI 이동 차단을 위해 참조 보관 (null-safe: 없어도 동작)
+    // 넉백 중 AI 이동 차단에 사용
     private KnockbackReceiver2D _knockbackReceiver;
 
     private void Awake()
@@ -81,6 +83,7 @@ public class EnemyMelee2D : MonoBehaviour
         attackDamage = enemyData.AttackDamage;
         moveSpeed = enemyData.MoveSpeed;
         attackRange = enemyData.AttackRange;
+        attackWindup = enemyData.AttackWindup;
         attackCooldown = enemyData.AttackCooldown;
     }
 
@@ -95,13 +98,11 @@ public class EnemyMelee2D : MonoBehaviour
             target = NormalizeTarget(target);
         }
 
-        // 넉백 중: velocity를 절대 덮어쓰지 않고 그냥 return.
-        // AddForce(Impulse)로 부여된 velocity를 물리 엔진이 직접 소멸시키도록 둬야 함.
-        // 이 블록에 linearVelocity = zero를 넣으면 매 FixedUpdate마다 넉백이 즉시 취소됨.
         if (_knockbackReceiver != null && _knockbackReceiver.IsKnockedBack)
+        {
             return;
+        }
 
-        // 경직 중(넉백은 끝남): 제자리에 멈춰 있어야 하므로 velocity = zero.
         if (_knockbackReceiver != null && _knockbackReceiver.IsStaggered)
         {
             _rb.linearVelocity = Vector2.zero;
@@ -152,7 +153,11 @@ public class EnemyMelee2D : MonoBehaviour
         }
 
         _rb.linearVelocity = Vector2.zero;
-        StartAttackWindup();
+
+        if (Time.time >= _nextAttackReadyTime)
+        {
+            StartAttackWindup();
+        }
     }
 
     private Vector2 CalculateSeparation()
@@ -192,6 +197,12 @@ public class EnemyMelee2D : MonoBehaviour
 
         _isPreparingAttack = true;
         _attackWindupEndTime = Time.time + Mathf.Max(0.01f, attackWindup);
+
+        Debug.Log(
+            $"[EnemyMelee2D] 침식체 공격 전조 시작 | target={target.name}, direction={_cachedAttackDirection}, windup={attackWindup}",
+            this
+        );
+        Debug.DrawRay(origin, _cachedAttackDirection * attackRange, Color.yellow, attackWindup);
     }
 
     private void StartAttackLunge()
@@ -203,7 +214,14 @@ public class EnemyMelee2D : MonoBehaviour
         _lungeEndTime = Time.time + safeLungeDuration;
         _lungeStartPosition = _rb.position;
         _lungeEndPosition = _lungeStartPosition + _cachedAttackDirection.normalized * Mathf.Max(0f, lungeDistance);
+        _hasDamagedThisLunge = false;
         _isLunging = true;
+
+        Debug.Log(
+            $"[EnemyMelee2D] 침식체 돌진 시작 | direction={_cachedAttackDirection}, distance={lungeDistance}, duration={safeLungeDuration}",
+            this
+        );
+        Debug.DrawLine(_lungeStartPosition, _lungeEndPosition, Color.red, safeLungeDuration);
     }
 
     private void UpdateAttackLunge()
@@ -213,6 +231,7 @@ public class EnemyMelee2D : MonoBehaviour
         float duration = Mathf.Max(0.01f, _lungeEndTime - _lungeStartTime);
         float progress = Mathf.Clamp01((Time.time - _lungeStartTime) / duration);
         _rb.MovePosition(Vector2.Lerp(_lungeStartPosition, _lungeEndPosition, progress));
+        TryDealLungeDamage();
 
         if (progress < 1f)
         {
@@ -220,12 +239,22 @@ public class EnemyMelee2D : MonoBehaviour
         }
 
         _isLunging = false;
-        ExecuteAttack();
-        _recoveryEndTime = Time.time + Mathf.Max(0.01f, attackCooldown + attackRecoveryTime);
+        _recoveryEndTime = Time.time + Mathf.Max(0.01f, attackRecoveryTime);
+        _nextAttackReadyTime = _recoveryEndTime + Mathf.Max(0f, attackCooldown);
+
+        Debug.Log(
+            $"[EnemyMelee2D] 침식체 회복 시작 | recovery={attackRecoveryTime}, nextCooldown={attackCooldown}, hit={_hasDamagedThisLunge}",
+            this
+        );
     }
 
-    private void ExecuteAttack()
+    private void TryDealLungeDamage()
     {
+        if (_hasDamagedThisLunge)
+        {
+            return;
+        }
+
         if (!IsValidTarget(target))
         {
             target = null;
@@ -237,7 +266,6 @@ public class EnemyMelee2D : MonoBehaviour
         EnsurePlayerLayerConfigured();
 
         Vector2 origin = transform.position;
-        Vector2 targetPoint = GetTargetPoint(target);
         Vector2 attackDirection = _cachedAttackDirection.sqrMagnitude > 0.0001f
             ? _cachedAttackDirection.normalized
             : Vector2.right;
@@ -248,21 +276,27 @@ public class EnemyMelee2D : MonoBehaviour
         _lastHitRadius = safeHitRadius;
         _hasLastHit = true;
 
-        Debug.Log(
-            $"[EnemyMelee2D] 공격 실행 | origin={origin}, target={target.name}, targetPoint={targetPoint}, " +
-            $"attackDirection={attackDirection}, hitCenter={hitCenter}, attackRange={attackRange}, hitRadius={safeHitRadius}",
-            this
-        );
-        Debug.DrawLine(origin, hitCenter, Color.red, 0.5f);
+        Debug.DrawLine(origin, hitCenter, Color.red, 0.1f);
 
-        MeleeHitResolver2D.DealDamageInRange(
+        int damagedCount = MeleeHitResolver2D.DealDamageInRange(
             hitCenter,
             safeHitRadius,
             attackDamage,
             playerLayer,
             this,
             "EnemyMelee2D",
-            CombatAttribute.Justice   // 현재 적 근접 공격 = 정의 속성 (임시). 적별 속성 추가 시 Inspector 필드로 분리
+            CombatAttribute.Justice
+        );
+
+        if (damagedCount <= 0)
+        {
+            return;
+        }
+
+        _hasDamagedThisLunge = true;
+        Debug.Log(
+            $"[EnemyMelee2D] 침식체 돌진 적중 | target={target.name}, damage={attackDamage}, hitCenter={hitCenter}, hitRadius={safeHitRadius}",
+            this
         );
     }
 
@@ -388,6 +422,12 @@ public class EnemyMelee2D : MonoBehaviour
     {
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(transform.position, attackRange);
+
+        if (_isPreparingAttack)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawLine(transform.position, (Vector2)transform.position + _cachedAttackDirection * attackRange);
+        }
 
         if (!_hasLastHit)
         {

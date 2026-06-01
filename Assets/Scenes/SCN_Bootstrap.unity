@@ -1509,9 +1509,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcc2f88b175eec94bb98fbe589cdfdbe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KasiaCombat2D
-  ultimateMax: 20
+  ultimateMax: 100
   basicAttackHitGain: 1
-  skillHitGain: 4
+  skillHitGain: 30
+  startWithFullUltimateForTest: 1
   combatData: {fileID: 11400000, guid: 9a8b7c6d5e4f3210abcdef1234567890, type: 2}
   attackPoint: {fileID: 490184800}
   heavyAttackRange: 1.4
@@ -2118,9 +2119,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa82dd544ece7f34eb4f7c903b73f34e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AgnieszkaCombat2D
-  ultimateMax: 20
+  ultimateMax: 100
   basicAttackHitGain: 1
   skillHitGain: 4
+  startWithFullUltimateForTest: 1
   attackPoint: {fileID: 1978893144}
   heavyAttackRange: 1.4
   targetLayer:
@@ -3495,9 +3497,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3a708b29da0d585418ddded10418f7a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ArrivalCombat2D
-  ultimateMax: 20
+  ultimateMax: 100
   basicAttackHitGain: 1
   skillHitGain: 4
+  startWithFullUltimateForTest: 1
   attackPoint: {fileID: 819600411}
   heavyAttackRange: 1.4
   targetLayer:
@@ -3712,9 +3715,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 684f6cd177a7c8e468be7cf287a80ef8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerRangedAttack2D
-  ultimateMax: 20
+  ultimateMax: 100
   basicAttackHitGain: 1
   skillHitGain: 4
+  startWithFullUltimateForTest: 1
   attackPoint: {fileID: 0}
   heavyAttackRange: 1.4
   targetLayer:

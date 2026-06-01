@@ -44,6 +44,7 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
 
     [SerializeField, Min(0f)] protected float basicAttackHitGain = 5f;
     [SerializeField, Min(0f)] protected float skillHitGain = 15f;
+    [SerializeField] private bool startWithFullUltimateForTest = true;
 
     [Header("Combat Data")]
     [SerializeField] protected CharacterCombatData combatData;
@@ -228,6 +229,8 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
             return;
         }
 
+        ApplyStartingUltimateGaugeForTest();
+
         _baseAttackCooldown = attackCooldown;
         _mainCamera = Camera.main;
         hitAudioSource = hitAudioSource != null ? hitAudioSource : GetComponent<AudioSource>();
@@ -247,6 +250,17 @@ public abstract class BasePlayableCombat2D : MonoBehaviour
         {
             Debug.LogWarning("[ArrivalCombat2D] targetLayer is empty.", this);
         }
+    }
+
+    private void ApplyStartingUltimateGaugeForTest()
+    {
+        if (!startWithFullUltimateForTest)
+        {
+            return;
+        }
+
+        ultimateGauge = Mathf.Max(0f, ultimateMax);
+        Debug.Log($"[{GetType().Name}] 테스트용 시작 궁극기 게이지 충전: {ultimateGauge:0.##}/{ultimateMax:0.##}", this);
     }
 
     protected virtual void OnValidate()

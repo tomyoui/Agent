@@ -12,17 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f5b8a9c0d1e4f2a9b8c7d6e5f4a3b2c, type: 3}
   m_Name: KasiaCombatData
   m_EditorClassIdentifier: 
-  basicAttackDamage: 30
+  basicAttackDamage: 34
   heavyAttackDamage: 55
-  skillDamage: 70
-  ultimateDamage: 0
-  attackCooldown: 0.55
-  skillCooldown: 8
+  skillDamage: 95
+  ultimateDamage: 180
+  attackCooldown: 0.34
+  skillCooldown: 4
   heavyAttackCooldown: 1
   heavyAttackStartupDelay: 0.3
   heavyAttackRecoveryDelay: 0.4
-  attackRange: 1.6
-  skillRange: 1.5
+  attackRange: 1.55
+  skillRange: 2.7
   heavyAttackRange: 1.4
-  hitStopDuration: 0.08
-  knockbackPower: 7
+  hitStopDuration: 0.055
+  knockbackPower: 8.5
