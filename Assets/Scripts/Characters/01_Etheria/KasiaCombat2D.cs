@@ -7,25 +7,29 @@ public class KasiaCombat2D : BasePlayableCombat2D
     [Header("Kasia Basic Attack")]
     [SerializeField] private AttackDefinition basicAttack = new AttackDefinition { coefficient = 2.4f };
     [SerializeField] private AttackDefinition combo3Attack = new AttackDefinition { coefficient = 3.2f };
-    [SerializeField] private float fallbackAttackRange = 1.55f;
-    [SerializeField] private float combo3AttackRange = 2.15f;
-    [SerializeField] private float fallbackAttackAngle = 120f;
-    [SerializeField] private float combo3AttackAngle = 155f;
-    [SerializeField] private float fallbackAttackCooldown = 0.34f;
-    [SerializeField] private float fallbackHitStop = 0.055f;
-    [SerializeField] private float fallbackKnockbackPower = 8.5f;
+    [SerializeField] private float fallbackAttackRange = 1.8f;
+    [SerializeField] private float combo3AttackRange = 2.35f;
+    [SerializeField] private float fallbackAttackAngle = 135f;
+    [SerializeField] private float combo3AttackAngle = 165f;
+    [SerializeField] private float fallbackAttackCooldown = 0.38f;
+    [SerializeField] private float fallbackHitStop = 0.08f;
+    [SerializeField] private float fallbackHeavyHitStop = 0.12f;
+    [SerializeField] private float fallbackKnockbackPower = 11f;
+    [SerializeField] private float fallbackHeavyKnockbackPower = 16f;
+    [SerializeField] private float fallbackHeavyAttackRange = 2.45f;
+    [SerializeField, Min(1f)] private float heavyDamageMultiplier = 1.25f;
     [SerializeField, Min(1f)] private float combo3DamageMultiplier = 1.55f;
 
     [Header("Kasia E Skill")]
-    [SerializeField] private float dashDistance = 3.2f;
-    [SerializeField] private float dashDuration = 0.12f;
-    [SerializeField, Min(0)] private int fallbackSkillDamage = 95;
+    [SerializeField] private float dashDistance = 3.5f;
+    [SerializeField] private float dashDuration = 0.14f;
+    [SerializeField, Min(0)] private int fallbackSkillDamage = 115;
     [SerializeField, Min(0f)] private float fallbackSkillCooldown = 4f;
-    [SerializeField, Min(0f)] private float fallbackSkillRange = 2.7f;
-    [SerializeField, Min(0f)] private float skillBoxWidth = 1.75f;
-    [SerializeField, Min(0f)] private float skillForwardOffset = 0.25f;
-    [SerializeField, Min(0f)] private float skillKnockbackForce = 13f;
-    [SerializeField, Min(0f)] private float skillKnockbackDuration = 0.18f;
+    [SerializeField, Min(0f)] private float fallbackSkillRange = 3.05f;
+    [SerializeField, Min(0f)] private float skillBoxWidth = 2.05f;
+    [SerializeField, Min(0f)] private float skillForwardOffset = 0.35f;
+    [SerializeField, Min(0f)] private float skillKnockbackForce = 17f;
+    [SerializeField, Min(0f)] private float skillKnockbackDuration = 0.24f;
     [SerializeField] private Color skillDamageNumberColor = new Color(1f, 0.25f, 0.1f);
 
     [Header("Kasia Q Ultimate")]
@@ -139,7 +143,7 @@ public class KasiaCombat2D : BasePlayableCombat2D
 
     protected override float GetAttackCooldown()
     {
-        return combatData != null ? combatData.AttackCooldown : fallbackAttackCooldown;
+        return Mathf.Max(0.01f, fallbackAttackCooldown);
     }
 
     protected override AttackDefinition GetComboAttackDef(int comboStep)
@@ -156,7 +160,7 @@ public class KasiaCombat2D : BasePlayableCombat2D
             return;
         }
 
-        range = combatData != null ? combatData.AttackRange : fallbackAttackRange;
+        range = fallbackAttackRange;
         angle = fallbackAttackAngle;
     }
 
@@ -171,12 +175,23 @@ public class KasiaCombat2D : BasePlayableCombat2D
 
     protected override float GetHitStopDuration(int comboStep)
     {
-        return combatData != null ? combatData.HitStopDuration : fallbackHitStop;
+        return comboStep == 0 ? fallbackHeavyHitStop : fallbackHitStop;
     }
 
     protected override float GetKnockbackForce(int comboStep)
     {
-        return combatData != null ? combatData.KnockbackPower : fallbackKnockbackPower;
+        return comboStep == 0 ? fallbackHeavyKnockbackPower : fallbackKnockbackPower;
+    }
+
+    protected override int GetHeavyAttackDamage(AttackDefinition attackDef)
+    {
+        int baseDamage = base.GetHeavyAttackDamage(attackDef);
+        return Mathf.Max(1, Mathf.RoundToInt(baseDamage * heavyDamageMultiplier));
+    }
+
+    protected override float GetHeavyAttackRange()
+    {
+        return fallbackHeavyAttackRange;
     }
 
     private IEnumerator JudgementGreatswordRoutine()

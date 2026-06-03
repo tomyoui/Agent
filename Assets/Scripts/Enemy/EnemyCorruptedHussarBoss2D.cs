@@ -29,26 +29,31 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
     [Header("Movement")]
     [SerializeField, Min(0f)] private float moveSpeed = 2.2f;
     [SerializeField, Min(0f)] private float chaseRange = 8f;
-    [SerializeField, Min(0f)] private float attackCooldown = 0.9f;
+    [SerializeField, Min(0f)] private float attackCooldown = 1f;
 
     [Header("Lance Charge")]
-    [SerializeField, Min(0f)] private float chargeTelegraphTime = 0.8f;
+    [SerializeField, Min(0f)] private float chargeTelegraphTime = 0.85f;
     [SerializeField, Min(0f)] private float chargeSpeed = 14f;
     [SerializeField, Min(0f)] private float chargeDuration = 0.45f;
-    [SerializeField, Min(0)] private int chargeDamage = 18;
-    [SerializeField, Min(0f)] private float chargeRecoveryTime = 0.6f;
+    [SerializeField, Min(0)] private int chargeDamage = 8;
+    [SerializeField, Min(0f)] private float chargeRecoveryTime = 1.05f;
+    [SerializeField, Min(0f)] private float chargeHitRadius = 1.35f;
+    [SerializeField, Min(0f)] private float chargeHitForwardOffset = 0.75f;
+    [SerializeField, Min(0f)] private float chargeCloseHitRadius = 1.25f;
 
     [Header("Wing Sweep")]
-    [SerializeField, Min(0f)] private float sweepTelegraphTime = 0.5f;
+    [SerializeField, Min(0f)] private float sweepTelegraphTime = 0.75f;
     [SerializeField, Min(0f)] private float sweepRadius = 3.2f;
-    [SerializeField, Min(0)] private int sweepDamage = 12;
-    [SerializeField, Min(0f)] private float sweepRecoveryTime = 0.5f;
+    [SerializeField, Min(0)] private int sweepDamage = 5;
+    [SerializeField, Min(0f)] private float sweepRecoveryTime = 1f;
+    [SerializeField, Min(0f)] private float sweepForwardOffset = 1.2f;
+    [SerializeField, Min(0f)] private float sweepCloseRadius = 1.6f;
 
     [Header("Jump Slam")]
     [SerializeField, Min(0f)] private float slamTelegraphTime = 0.8f;
     [SerializeField, Min(0f)] private float slamRadius = 3f;
-    [SerializeField, Min(0)] private int slamDamage = 24;
-    [SerializeField, Min(0f)] private float slamRecoveryTime = 0.8f;
+    [SerializeField, Min(0)] private int slamDamage = 10;
+    [SerializeField, Min(0f)] private float slamRecoveryTime = 1f;
 
     [Header("Telegraph Color")]
     [SerializeField] private Color chargeTelegraphColor = new Color(1f, 0.85f, 0.15f);
@@ -68,7 +73,6 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
     [SerializeField, Min(1f)] private float slamImpactScaleMultiplier = 1.15f;
     [SerializeField, Min(0.01f)] private float slamImpactHoldTime = 0.12f;
 
-    private const float ChargeHitRadius = 1.05f;
     private const float SlamPredictLeadTime = 0.35f;
     private const float SlamLateRetargetLeadTime = 0.2f;
 
@@ -86,6 +90,12 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
     private Vector2 _lastTargetPoint;
     private float _lastTargetSampleTime;
     private Vector2 _estimatedTargetVelocity;
+    private Vector2 _lastHitCenter;
+    private float _lastHitRadius;
+    private Vector2 _lastCloseHitCenter;
+    private float _lastCloseHitRadius;
+    private bool _hasLastHit;
+    private bool _hasLastCloseHit;
     private readonly HashSet<IDamageable> _damagedThisAttack = new HashSet<IDamageable>();
 
     private void Awake()
@@ -189,12 +199,14 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
     {
         SetState(BossState.Telegraph);
         FaceCurrentTarget();
+        Vector2 chargeDirection = _facingDirection;
         StopMovement();
         Debug.Log($"[EnemyCorruptedHussarBoss2D] 랜스 차지 전조 연출 시작 | direction={_facingDirection}, time={chargeTelegraphTime}", this);
 
         yield return PlayTelegraphVisual(chargeTelegraphTime, chargeTelegraphColor, telegraphScaleMultiplier);
         if (IsBossDead()) yield break;
 
+        _facingDirection = chargeDirection;
         SetState(BossState.Attack);
         SetSpriteColor(attackColor);
         ApplyChargeVisual();
@@ -203,9 +215,11 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
         float endTime = Time.time + chargeDuration;
         while (Time.time < endTime && !IsBossDead())
         {
-            Vector2 nextPosition = _rb.position + _facingDirection * (chargeSpeed * Time.fixedDeltaTime);
+            Vector2 nextPosition = _rb.position + chargeDirection * (chargeSpeed * Time.fixedDeltaTime);
             _rb.MovePosition(nextPosition);
-            TryDealDamageInRange(_rb.position, ChargeHitRadius, chargeDamage, "랜스 차지");
+            Vector2 chargeCenter = GetForwardHitCenter(_rb.position, chargeDirection, chargeHitForwardOffset);
+            TryDealDamageInRange(chargeCenter, chargeHitRadius, chargeDamage, "랜스 차지");
+            TryDealCloseDamageInRange(_rb.position, chargeCloseHitRadius, chargeDamage, "랜스 차지 근접 보정");
             yield return new WaitForFixedUpdate();
         }
 
@@ -225,10 +239,12 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
 
         SetState(BossState.Attack);
         SetSpriteColor(attackColor);
-        DrawSweepDebug();
-        Debug.Log($"[EnemyCorruptedHussarBoss2D] 윙 스윕 원형 견제 공격 | radius={sweepRadius}, damage={sweepDamage}", this);
+        Vector2 sweepCenter = GetForwardHitCenter(transform.position, _facingDirection, sweepForwardOffset);
+        DrawSweepDebug(sweepCenter);
+        Debug.Log($"[EnemyCorruptedHussarBoss2D] 윙 스윕 공격 판정 | center={sweepCenter}, radius={sweepRadius}, closeRadius={sweepCloseRadius}, damage={sweepDamage}", this);
         yield return PlayWingSweepShake();
-        TryDealDamageInRange((Vector2)transform.position, sweepRadius, sweepDamage, "윙 스윕");
+        TryDealDamageInRange(sweepCenter, sweepRadius, sweepDamage, "윙 스윕");
+        TryDealCloseDamageInRange(transform.position, sweepCloseRadius, sweepDamage, "윙 스윕 근접 보정");
 
         ResetTransformVisuals();
         yield return RunRecovery(sweepRecoveryTime, "윙 스윕");
@@ -365,25 +381,35 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
             return BossPattern.WingSweep;
         }
 
-        if (distanceToTarget >= slamRadius * 1.6f)
-        {
-            Debug.Log($"[EnemyCorruptedHussarBoss2D] 패턴 선택 | 먼 거리={distanceToTarget:0.00}, Lance Charge 우선", this);
-            return BossPattern.LanceCharge;
-        }
-
-        Debug.Log($"[EnemyCorruptedHussarBoss2D] 패턴 선택 | 중거리={distanceToTarget:0.00}, Jump Slam 우선", this);
-        return BossPattern.JumpSlam;
+        Debug.Log($"[EnemyCorruptedHussarBoss2D] 패턴 선택 | 거리={distanceToTarget:0.00}, Lance Charge 우선", this);
+        return BossPattern.LanceCharge;
     }
 
-    private void TryDealDamageInRange(Vector2 center, float radius, int damage, string debugLabel)
+    private int TryDealDamageInRange(Vector2 center, float radius, int damage, string debugLabel)
     {
+        _lastHitCenter = center;
+        _lastHitRadius = Mathf.Max(0f, radius);
+        _hasLastHit = true;
+
         ContactFilter2D filter = CreatePlayerFilter();
         Collider2D[] hits = new Collider2D[32];
-        int hitCount = Physics2D.OverlapCircle(center, Mathf.Max(0f, radius), filter, hits);
-        ApplyDamageToHits(hits, hitCount, damage, debugLabel);
+        int hitCount = Physics2D.OverlapCircle(center, _lastHitRadius, filter, hits);
+        return ApplyDamageToHits(hits, hitCount, damage, debugLabel);
     }
 
-    private void ApplyDamageToHits(Collider2D[] hits, int hitCount, int damage, string debugLabel)
+    private int TryDealCloseDamageInRange(Vector2 center, float radius, int damage, string debugLabel)
+    {
+        _lastCloseHitCenter = center;
+        _lastCloseHitRadius = Mathf.Max(0f, radius);
+        _hasLastCloseHit = true;
+
+        ContactFilter2D filter = CreatePlayerFilter();
+        Collider2D[] hits = new Collider2D[32];
+        int hitCount = Physics2D.OverlapCircle(center, _lastCloseHitRadius, filter, hits);
+        return ApplyDamageToHits(hits, hitCount, damage, debugLabel);
+    }
+
+    private int ApplyDamageToHits(Collider2D[] hits, int hitCount, int damage, string debugLabel)
     {
         int damagedCount = 0;
 
@@ -412,6 +438,7 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
         }
 
         Debug.Log($"[EnemyCorruptedHussarBoss2D] {debugLabel} 판정 종료 | hitCount={hitCount}, damagedCount={damagedCount}", this);
+        return damagedCount;
     }
 
     private ContactFilter2D CreatePlayerFilter()
@@ -587,16 +614,31 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
         transform.localRotation = _originalRotation * Quaternion.Euler(0f, 0f, chargeLeanAngle * sign);
     }
 
-    private void DrawSweepDebug()
+    private Vector2 GetForwardHitCenter(Vector2 origin, Vector2 direction, float forwardOffset)
+    {
+        Vector2 safeDirection = direction.sqrMagnitude > 0.0001f
+            ? direction.normalized
+            : _facingDirection;
+
+        if (safeDirection.sqrMagnitude <= 0.0001f)
+        {
+            safeDirection = Vector2.down;
+        }
+
+        return origin + safeDirection.normalized * Mathf.Max(0f, forwardOffset);
+    }
+
+    private void DrawSweepDebug(Vector2 sweepCenter)
     {
         Vector2 origin = transform.position;
         Vector2 side = new Vector2(-_facingDirection.y, _facingDirection.x);
         Vector2 leftEdge = (_facingDirection + side * 0.75f).normalized * sweepRadius;
         Vector2 rightEdge = (_facingDirection - side * 0.75f).normalized * sweepRadius;
 
-        Debug.DrawLine(origin, origin + leftEdge, Color.red, 0.35f);
-        Debug.DrawLine(origin, origin + rightEdge, Color.red, 0.35f);
-        Debug.DrawLine(origin + leftEdge, origin + rightEdge, Color.yellow, 0.35f);
+        Debug.DrawLine(origin, sweepCenter, Color.yellow, 0.35f);
+        Debug.DrawLine(sweepCenter, sweepCenter + leftEdge, Color.red, 0.35f);
+        Debug.DrawLine(sweepCenter, sweepCenter + rightEdge, Color.red, 0.35f);
+        Debug.DrawLine(sweepCenter + leftEdge, sweepCenter + rightEdge, Color.yellow, 0.35f);
     }
 
     private Vector3 GetUniformScale(float multiplier)
@@ -704,12 +746,35 @@ public class EnemyCorruptedHussarBoss2D : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, chaseRange);
 
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, sweepRadius);
+        Vector2 sweepCenter = GetForwardHitCenter(transform.position, _facingDirection, sweepForwardOffset);
+        Gizmos.DrawWireSphere(sweepCenter, sweepRadius);
+
+        Gizmos.color = new Color(1f, 0.45f, 0f);
+        Gizmos.DrawWireSphere(transform.position, sweepCloseRadius);
 
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(transform.position, slamRadius);
 
         Gizmos.color = Color.yellow;
         Gizmos.DrawLine(transform.position, (Vector2)transform.position + _facingDirection * Mathf.Max(1f, sweepRadius));
+
+        Vector2 chargeCenter = GetForwardHitCenter(transform.position, _facingDirection, chargeHitForwardOffset);
+        Gizmos.color = Color.white;
+        Gizmos.DrawWireSphere(chargeCenter, chargeHitRadius);
+
+        Gizmos.color = new Color(0.25f, 1f, 0.25f);
+        Gizmos.DrawWireSphere(transform.position, chargeCloseHitRadius);
+
+        if (_hasLastHit)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(_lastHitCenter, _lastHitRadius);
+        }
+
+        if (_hasLastCloseHit)
+        {
+            Gizmos.color = new Color(1f, 0.6f, 0f);
+            Gizmos.DrawWireSphere(_lastCloseHitCenter, _lastCloseHitRadius);
+        }
     }
 }
